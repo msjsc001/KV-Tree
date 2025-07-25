@@ -1,0 +1,13 @@
+{
+    "source_files": {
+        "D:/\u8f6f\u4ef6\u7f16\u5199/QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93/\u6d4b\u8bd5\u5199\u8bcd.md": {
+            "enabled": true,
+            "mtime": 1753422933.4043143
+        }
+    },
+    "output_path": "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93",
+    "rules": "[\u6392\u9664\u89c4\u5219]\n; \u6bcf\u884c\u4e00\u4e2a\u6b63\u5219\u8868\u8fbe\u5f0f\uff0c\u5339\u914d\u5230\u7684\u6574\u884c\u5185\u5bb9\u90fd\u5c06\u88ab\u5ffd\u7565\n\u6392\u9664\u884c_1 = ^\\s*id::.*\n\u6392\u9664\u884c_2 = ^\\s*collapsed::.*\n\n[\u66ff\u6362\u89c4\u5219]\n; \u5c06\u5339\u914d\u5230\u7684\u5185\u5bb9\u66ff\u6362\u4e3a\u7a7a\n\u66ff\u6362\u5185\u5bb9_1 = \\(\\(.*?\\)\\)",
+    "generated_files": [
+        "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93\\#KV\u6811-\u8bfb\u4e66\u8bcd\u5e93.md"
+    ]
+}
