@@ -4,7 +4,8 @@ KVTree 是一个轻量级、高效的桌面工具，是 [QuickKV](https://github
 
 如果您习惯于使用无序列表（大纲笔记）来组织和管理您的知识体系，并希望将这些结构化的信息无缝对接到 QuickKV 中用于快捷输入，KVTree 将是您的最佳助手。
 
-![KVTree UI](https://raw.githubusercontent.com/L-M-Sherlock/QuickKV-KVTreeApp/main/img/app_ui.png)
+![PixPin_2025-07-25_14-12-10](https://github.com/user-attachments/assets/38c90115-f6f6-4285-80b7-225688214e9c)
+
 
 ---
 
