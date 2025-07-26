@@ -178,3 +178,26 @@ KVTree 的核心优势在于其先进的解析引擎 `AstParser`，它摒弃了�
 		- 另外输出的文件不要是`#KV树-读书词库.md`有两个后缀。
 	- ✔️添加版本号
 - 
+
+
+---
+
+## 编译
+
+如何将此程序编译为独立的 `.exe` 文件：
+
+1.  **安装 PyInstaller**:
+    ```bash
+    pip install pyinstaller
+    ```
+
+2.  **编译**:
+    在项目根目录下运行以下命令：
+    ```bash
+    pyinstaller --noconsole --onefile kv_tree_app.py
+    ```
+    *   `--noconsole`: 运行时不显示控制台窗口。
+    *   `--onefile`: 将所有内容打包到单个 `.exe` 文件中。
+
+3.  **结果**:
+    编译完成后，可在 `dist` 文件夹中找到 `kv_tree_app.exe`。
