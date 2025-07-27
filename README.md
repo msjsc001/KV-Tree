@@ -6,6 +6,11 @@ KVTree 是一个轻量级、高效的桌面工具，是 [QuickKV](https://github
 
 ![PixPin_2025-07-25_14-12-10](https://github.com/user-attachments/assets/38c90115-f6f6-4285-80b7-225688214e9c)
 
+<p align="center">
+  <a href="https://github.com/msjsc001/KVTree/releases/latest"><img src="https://img.shields.io/github/v/release/msjsc001/KVTree"></a>
+  <a href="https://github.com/msjsc001/KVTree/commits/master"><img src="https://img.shields.io/github/last-commit/msjsc001/KVTree"></a>
+  <a href="https://github.com/msjsc001/KVTree/releases"><img src="https://img.shields.io/github/downloads/msjsc001/KVTree/total?label=Downloads&color=brightgreen"></a>
+</p>
 
 ---
 
