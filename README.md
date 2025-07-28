@@ -1,6 +1,7 @@
 # KVTree - QuickKV 词库生成器
+KVTree 支持用 Markdown 文件无序列表树（大纲）建立词库，建立的词库软件会自动转换生成为 QuickKV 词库
 
-KVTree 是一个轻量级、高效的桌面工具，是 [QuickKV](https://github.com/msjsc001/QuickKV) 的词库生成工具。旨在将您在任意目录的 Markdown 文件内大纲词条智能自动转换为 [QuickKV](https://github.com/msjsc001/QuickKV) 可直接使用的词库文件。换句话说我们可以通过在  Markdown 软件内使用树状大纲结构（无序列表）管理词条，这些词条 KVTree 在后台会直接识别转换为 KV（QuickKV） 的词库。
+KVTree 是一个轻量级、QuickKV辅助，是 [QuickKV](https://github.com/msjsc001/QuickKV) 的词库生成工具。旨在将您在任意目录的 Markdown 文件内大纲词条智能自动转换为 [QuickKV](https://github.com/msjsc001/QuickKV) 可直接使用的词库文件。换句话说我们可以通过在  Markdown 软件内使用树状大纲结构（无序列表）管理词条，这些词条 KVTree 在后台会直接识别转换为 KV（QuickKV） 的词库。
 
 如果您习惯于使用无序列表（大纲笔记）来组织和管理您的知识体系，并希望将这些结构化的信息无缝对接到 QuickKV 中用于快捷输入，KVTree 将是您的最佳助手。
 
