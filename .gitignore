@@ -122,3 +122,7 @@ dmypy.json
 node_modules/
 npm-debug.log
 yarn-error.log
+
+# 自定义忽略的文件
+源文件-用于测试/
+生成的词库输出-用于测试/
