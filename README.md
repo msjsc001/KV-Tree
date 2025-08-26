@@ -1,7 +1,7 @@
 # KVTree 是 QuickKV 的词库管理器
 KVTree （KVT）支持你在任意 Markdown 笔记软件内用无序列表树（大纲）方式管理[QuickKV（QKV）](https://github.com/msjsc001/QuickKV)词库，笔记软件内建立的词库软件会自动转换生成为 QuickKV 词库输出到指定目录下。这样**极大的方便了我们查看和管理已有的词条，词库里有什么词不会再产生疑惑**。大规模的管理建议使用Obsidian或Logseq（md版），KVT和QKV都能轻松支持百万量级的".md"文件。
 
-
+<img alt="PixPin_2025-08-26_15-03-21" src="https://github.com/user-attachments/assets/5ca1791c-a537-4a8c-9f71-dd118ff7ff9c" />
 <img src="https://github.com/user-attachments/assets/a65d8d84-97b6-413e-89e9-0883df4dbcb9" />
 （看上图就能学会使用）
 
