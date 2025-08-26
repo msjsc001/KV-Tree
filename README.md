@@ -6,9 +6,9 @@ KVTree （KVT）支持你在任意 Markdown 笔记软件内用无序列表树（
 （看上图就能学会使用）
 
 <p align="center">
-  <a href="https://github.com/msjsc001/KVTree/releases/latest"><img src="https://img.shields.io/github/v/release/msjsc001/KVTree"></a>
-  <a href="https://github.com/msjsc001/KVTree/commits/master"><img src="https://img.shields.io/github/last-commit/msjsc001/KVTree"></a>
-  <a href="https://github.com/msjsc001/KVTree/releases"><img src="https://img.shields.io/github/downloads/msjsc001/KVTree/total?label=Downloads&color=brightgreen"></a>
+  <a href="https://github.com/msjsc001/KV-Tree/releases/latest"><img src="https://img.shields.io/github/v/release/msjsc001/KV-Tree"></a>
+  <a href="https://github.com/msjsc001/KV-Tree/commits/master"><img src="https://img.shields.io/github/last-commit/msjsc001/KV-Tree"></a>
+  <a href="https://github.com/msjsc001/KV-Tree/releases"><img src="https://img.shields.io/github/downloads/msjsc001/KV-Tree/total?label=Downloads&color=brightgreen"></a>
 </p>
 
 ---
@@ -225,6 +225,8 @@ KVTree 的核心优势在于其先进的解析引擎 `AstParser`，它摒弃了�
     编译完成后，可在 `dist` 文件夹中找到 `kv_tree_app.exe`。
 
 ## 更新日志
+- ✔️V0.4
+	- [[KVT选择输出]]（在结果列表可以勾选，被勾选的才会被输出，不被勾选的会被清理且不会输出）
 - ✔️V0.3
 	- [[让KVT能扫描Logseq md文件的特定属性键值]] #L-M管理 、未来健壮性考虑重构代码原子化脚本
 - ✔️V0.2

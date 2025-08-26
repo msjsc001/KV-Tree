@@ -63,7 +63,7 @@ class AdvancedOptionsWindow(tk.Toplevel):
         return self.saved_options
 
 class KvTreeApp(tk.Tk):
-    VERSION = "v0.3-refactored"
+    VERSION = "v0.4.2-final"
 
     def __init__(self):
         super().__init__()
@@ -81,9 +81,10 @@ class KvTreeApp(tk.Tk):
         self.rules = config["rules"]
         self.generated_files = config["generated_files"]
         self.advanced_options = config["advanced_options"]
+        self.output_selection = config["output_selection"] # 新增: 加载输出选择
         self.logseq_generated_data = {} # {source_file: [entry1, entry2]}
 
-        self.auto_generate = tk.BooleanVar(value=False)
+        self.auto_generate = tk.BooleanVar(value=True) # 默认开启自动模式
         self.stop_monitoring = threading.Event()
         self.file_monitor = FileMonitor(self, self.stop_monitoring)
         self.monitoring_thread = None
@@ -92,6 +93,40 @@ class KvTreeApp(tk.Tk):
         
         self.build_ui()
         self.load_state_to_ui()
+        if self.auto_generate.get():
+            self.toggle_mon() # 如果是默认开启，则启动监控
+            # 增加启动时自动生成
+            self.after(200, lambda: self.proc_all(from_monitor=True))
+
+
+    def on_g_tree_click(self, event):
+        region = self.g_tree.identify_region(event.x, event.y)
+        if region != "cell": return
+        
+        column_id = self.g_tree.identify_column(event.x)
+        if column_id == "#1": # 只响应第一列“输出”的点击
+            item_id = self.g_tree.identify_row(event.y)
+            if not item_id: return
+            
+            basename = os.path.basename(item_id)
+            is_checked = self.output_selection.get(basename, True)
+            new_checked_state = not is_checked
+            self.output_selection[basename] = new_checked_state
+            
+            # 如果取消勾选，立即删除文件
+            if not new_checked_state:
+                try:
+                    if os.path.exists(item_id):
+                        os.chmod(item_id, stat.S_IWRITE)
+                        os.remove(item_id)
+                        self.set_status(f"已删除: {basename}")
+                except Exception as e:
+                    messagebox.showerror("删除失败", f"删除文件 {basename} 失败: {e}")
+            else:
+                # 如果重新勾选，立即触发生成
+                self.proc_all(from_monitor=True)
+
+            self.update_generated_list() # 刷新UI以显示新的勾选状态
 
     def build_ui(self):
         # --- Top Frame for Version ---
@@ -124,9 +159,10 @@ class KvTreeApp(tk.Tk):
         ttk.Button(a_frame, text="!! 生成 !!", command=lambda: self.proc_all()).pack(side=tk.LEFT, padx=5)
         
         g_frame = ttk.LabelFrame(main_frame, text="结果", padding="10"); g_frame.pack(fill=tk.BOTH, expand=True, pady=5)
-        self.g_tree = ttk.Treeview(g_frame, columns=("name", "source", "path"), show="headings")
-        self.g_tree.heading("name", text="词库"); self.g_tree.heading("source", text="源条目"); self.g_tree.heading("path", text="完整路径")
-        self.g_tree.column("source", width=200); self.g_tree.pack(fill=tk.BOTH, expand=True)
+        self.g_tree = ttk.Treeview(g_frame, columns=("output", "name", "source", "path"), show="headings")
+        self.g_tree.heading("output", text="输出"); self.g_tree.heading("name", text="词库"); self.g_tree.heading("source", text="源条目"); self.g_tree.heading("path", text="完整路径")
+        self.g_tree.column("output", width=40, anchor='c'); self.g_tree.column("source", width=200); self.g_tree.pack(fill=tk.BOTH, expand=True)
+        self.g_tree.bind("<Button-1>", self.on_g_tree_click)
         
         # --- Progress Bar and Status ---
         self.progress_var = tk.DoubleVar()
@@ -166,6 +202,7 @@ class KvTreeApp(tk.Tk):
     def proc_all(self, from_monitor=False):
         if not from_monitor: self.set_status("开始生成..."); self.progress_var.set(0)
         
+        previous_gen_paths = set(self.generated_files.keys())
         all_files = self.get_all_files_to_process()
         total_files = len(all_files)
         current_generated_files = {}
@@ -176,7 +213,10 @@ class KvTreeApp(tk.Tk):
         logseq_scan_enabled = self.advanced_options.get("logseq_scan_keys") or self.advanced_options.get("logseq_scan_values")
         self.logseq_generated_data.clear() # 每次重新生成时清空
         
+        # 强制将Logseq文件加入内存列表，防止被意外清除
         if logseq_scan_enabled:
+            # logseq_output_file = os.path.join(self.output_path, "Logseq属性键值.md")
+            # self.generated_files[logseq_output_file] = "Logseq Scan"
             self.logseq_parser = LogseqParser(
                 scan_keys=self.advanced_options.get("logseq_scan_keys", False),
                 scan_values=self.advanced_options.get("logseq_scan_values", False)
@@ -189,12 +229,15 @@ class KvTreeApp(tk.Tk):
                 # --- 原有解析逻辑 ---
                 res, conf = self.parser.parse(content, self.rules)
                 conflicts += len(conf)
+
                 for lib, entries in res.items():
                     out_path = os.path.join(self.output_path, lib)
                     current_generated_files[out_path] = source_entry_path
-                    if os.path.exists(out_path): os.chmod(out_path, stat.S_IWRITE)
-                    with open(out_path, "w", encoding="utf-8") as f: f.write("\n".join(entries))
-                    os.chmod(out_path, stat.S_IREAD | stat.S_IRGRP | stat.S_IROTH)
+                    # 检查是否勾选
+                    if self.output_selection.get(os.path.basename(out_path), True):
+                        if os.path.exists(out_path): os.chmod(out_path, stat.S_IWRITE)
+                        with open(out_path, "w", encoding="utf-8") as f: f.write("\n".join(entries))
+                        os.chmod(out_path, stat.S_IREAD | stat.S_IRGRP | stat.S_IROTH)
 
                 # --- 新的Logseq解析逻辑 ---
                 if logseq_scan_enabled:
@@ -217,7 +260,7 @@ class KvTreeApp(tk.Tk):
         # --- 处理Logseq扫描结果 ---
         logseq_output_file = os.path.join(self.output_path, "Logseq属性键值.md")
         
-        if logseq_scan_enabled:
+        if logseq_scan_enabled and self.output_selection.get("Logseq属性键值.md", True):
             all_logseq_entries = set()
             for entries in self.logseq_generated_data.values():
                 all_logseq_entries.update(entries)
@@ -242,18 +285,44 @@ class KvTreeApp(tk.Tk):
                 except Exception as e:
                     messagebox.showerror("删除失败", f"删除旧的Logseq词库失败: {e}")
 
-        old_gen_paths = set(self.generated_files.keys())
-        new_gen_paths = set(current_generated_files.keys())
-        files_to_delete = old_gen_paths - new_gen_paths
+        # --- 清理阶段 ---
+        # 步骤 1: 更新内存中的文件全集
+        self.generated_files.update(current_generated_files)
         
-        for f_path in files_to_delete:
+        # 步骤 2: 清理那些源头已经消失的文件
+        # (通过对比proc_all开始前的状态和当前扫描结果)
+        for f_path in previous_gen_paths - set(current_generated_files.keys()):
+            if f_path in self.generated_files:
+                del self.generated_files[f_path]
+            basename = os.path.basename(f_path)
+            if basename in self.output_selection:
+                del self.output_selection[basename]
             try:
                 if os.path.exists(f_path):
-                    os.chmod(f_path, stat.S_IWRITE); os.remove(f_path)
+                    os.chmod(f_path, stat.S_IWRITE)
+                    os.remove(f_path)
             except Exception as e:
                 if not from_monitor: messagebox.showerror("删除失败", f"删除旧词库失败 {f_path}: {e}")
 
-        self.generated_files = current_generated_files
+        # 步骤 3: 根据勾选状态，从磁盘上删除文件 (但不从内存中删除)
+        for f_path in self.generated_files.keys():
+            basename = os.path.basename(f_path)
+            if not self.output_selection.get(basename, True):
+                try:
+                    if os.path.exists(f_path):
+                        os.chmod(f_path, stat.S_IWRITE)
+                        os.remove(f_path)
+                except Exception as e:
+                    if not from_monitor: messagebox.showerror("删除失败", f"删除未勾选文件失败: {f_path}: {e}")
+
+        # 如果Logseq扫描被关闭了，确保它从内存和UI中被移除
+        if not logseq_scan_enabled:
+            logseq_output_file = os.path.join(self.output_path, "Logseq属性键值.md")
+            if logseq_output_file in self.generated_files:
+                del self.generated_files[logseq_output_file]
+                if os.path.exists(logseq_output_file):
+                    os.remove(logseq_output_file)
+
         self.update_generated_list()
         
         msg = f"完成！共处理 {processed_count} 个文件。" + (f" 发现 {conflicts} 冲突。" if conflicts else "")
@@ -265,9 +334,18 @@ class KvTreeApp(tk.Tk):
     def update_generated_list(self):
         self.g_tree.delete(*self.g_tree.get_children())
         for f_path, source_path in sorted(self.generated_files.items()):
+            basename = os.path.basename(f_path)
+            
+            # 如果是新文件，默认设置为勾选
+            if basename not in self.output_selection:
+                self.output_selection[basename] = True
+            
+            is_checked = self.output_selection.get(basename, True)
+            check_char = "☑" if is_checked else "☐"
+            
             display_source = source_path
             if len(source_path) > 50: display_source = "..." + source_path[-47:]
-            self.g_tree.insert("", "end", values=(os.path.basename(f_path), display_source, f_path))
+            self.g_tree.insert("", "end", iid=f_path, values=(check_char, basename, display_source, f_path))
 
     def on_closing(self):
         self.stop_monitoring.set()
@@ -276,7 +354,8 @@ class KvTreeApp(tk.Tk):
             "output_path": self.output_path,
             "rules": self.rules,
             "generated_files": self.generated_files,
-            "advanced_options": self.advanced_options
+            "advanced_options": self.advanced_options,
+            "output_selection": self.output_selection
         }
         self.config_manager.save_config(app_data)
         self.destroy()
@@ -349,8 +428,23 @@ class KvTreeApp(tk.Tk):
         selected_id = self.s_tree.focus()
         if not selected_id: return
         if messagebox.askyesno("确认移除", f"确定要移除 '{selected_id}' 吗？\n\n注意：如果这是一个文件夹，所有由它生成的词库文件也将被删除。"):
+            # --- 更新Logseq数据 ---
+            source_info = self.source_files.get(selected_id, {})
+            files_in_source = source_info.get("files", {selected_id: 0}) # 对文件和文件夹都适用
+            
+            logseq_data_changed = False
+            for f_path in files_in_source:
+                if f_path in self.logseq_generated_data:
+                    del self.logseq_generated_data[f_path]
+                    logseq_data_changed = True
+            
+            # 如果Logseq数据变了，需要重写Logseq词库文件
+            # if logseq_data_changed:
+            #     self.proc_all(from_monitor=True) # 调用重新生成来更新文件
+            
+            # --- 原有清理逻辑 ---
             files_to_delete = []
-            if self.source_files[selected_id].get("type") == "folder":
+            if source_info.get("type") == "folder":
                 for gen_path, source_path in list(self.generated_files.items()):
                     if source_path == selected_id: files_to_delete.append(gen_path)
             
@@ -361,8 +455,11 @@ class KvTreeApp(tk.Tk):
                     if f_path in self.generated_files: del self.generated_files[f_path]
                 except Exception as e:
                     messagebox.showerror("删除失败", f"删除生成的词库 {f_path} 失败: {e}")
+
             del self.source_files[selected_id]
-            self.update_source_list(); self.update_generated_list()
+            self.proc_all(from_monitor=True) # 重新生成以更新所有状态
+            self.update_source_list()
+            self.update_generated_list()
             self.set_status(f"'{os.path.basename(selected_id)}' 已被移除。")
 
     def select_o(self):

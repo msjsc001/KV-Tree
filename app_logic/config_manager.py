@@ -26,7 +26,8 @@ class ConfigManager:
             "advanced_options": {
                 "logseq_scan_keys": False,
                 "logseq_scan_values": False
-            }
+            },
+            "output_selection": {}
         }
 
     def load_config(self):
@@ -57,6 +58,9 @@ class ConfigManager:
 
             # 加载高级选项，如果不存在则使用默认值
             self.config["advanced_options"] = loaded_config.get("advanced_options", self.config["advanced_options"])
+            
+            # 加载输出选择，如果不存在则使用默认值
+            self.config["output_selection"] = loaded_config.get("output_selection", {})
 
         except (FileNotFoundError, json.JSONDecodeError):
             # 如果文件不存在或无效，则使用默认配置
@@ -70,7 +74,8 @@ class ConfigManager:
             "output_path": app_data.get("output_path", os.getcwd()),
             "rules": app_data.get("rules", DEFAULT_RULES),
             "generated_files": app_data.get("generated_files", {}),
-            "advanced_options": app_data.get("advanced_options", {})
+            "advanced_options": app_data.get("advanced_options", {}),
+            "output_selection": app_data.get("output_selection", {})
         }
         with open(self.config_file, "w", encoding="utf-8") as f:
             json.dump(config_to_save, f, indent=4)
