@@ -5,10 +5,29 @@ import os
 import stat
 import time
 import threading
+import sys
+# 托盘和图标相关
+from PIL import Image
+import pystray
+# Windows注册表相关
+try:
+    import winreg
+except ImportError:
+    winreg = None # 在非Windows系统上提供一个占位符
+
 from app_logic.ast_parser import AstParser
 from app_logic.logseq_parser import LogseqParser
 from app_logic.config_manager import ConfigManager
 from app_logic.file_monitor import FileMonitor
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 # ==============================================================================
 # UI & 主应用
@@ -35,15 +54,37 @@ class AdvancedOptionsWindow(tk.Toplevel):
         self.grab_set()
 
         self.options = options
+        # 初始化所有选项的 tk.BooleanVar
         self.scan_keys_var = tk.BooleanVar(value=options.get("logseq_scan_keys", False))
         self.scan_values_var = tk.BooleanVar(value=options.get("logseq_scan_values", False))
+        self.run_on_startup_var = tk.BooleanVar(value=options.get("run_on_startup", False))
+        self.minimize_to_tray_var = tk.BooleanVar(value=options.get("minimize_to_tray", True))
+        
+        # 创建 Notebook (选项卡)
+        notebook = ttk.Notebook(self)
+        notebook.pack(padx=10, pady=10, fill="both", expand=True)
 
-        frame = ttk.LabelFrame(self, text="Logseq md属性扫描", padding="10")
-        frame.pack(padx=10, pady=10, fill="x")
+        # -- “常用” 选项卡 --
+        common_frame = ttk.Frame(notebook)
+        notebook.add(common_frame, text="常用")
+        
+        common_lf = ttk.LabelFrame(common_frame, text="常规设置", padding="10")
+        common_lf.pack(padx=10, pady=10, fill="x")
+        
+        ttk.Checkbutton(common_lf, text="系统启动时启动", variable=self.run_on_startup_var).pack(anchor="w", pady=2)
+        ttk.Checkbutton(common_lf, text="最小化时在托盘 (默认勾选)", variable=self.minimize_to_tray_var).pack(anchor="w", pady=2)
 
-        ttk.Checkbutton(frame, text="页头属性键录入为词条", variable=self.scan_keys_var).pack(anchor="w", pady=2)
-        ttk.Checkbutton(frame, text="页头属性值录入为词条-带双方括号[[]]的", variable=self.scan_values_var).pack(anchor="w", pady=2)
+        # -- “扫描” 选项卡 --
+        scan_frame = ttk.Frame(notebook)
+        notebook.add(scan_frame, text="扫描")
+        
+        logseq_lf = ttk.LabelFrame(scan_frame, text="Logseq md属性扫描", padding="10")
+        logseq_lf.pack(padx=10, pady=10, fill="x")
+        
+        ttk.Checkbutton(logseq_lf, text="页头属性键录入为词条", variable=self.scan_keys_var).pack(anchor="w", pady=2)
+        ttk.Checkbutton(logseq_lf, text="页头属性值录入为词条-带双方括号[[]]的", variable=self.scan_values_var).pack(anchor="w", pady=2)
 
+        # -- 保存/取消按钮 --
         button_frame = ttk.Frame(self)
         button_frame.pack(pady=10)
         ttk.Button(button_frame, text="保存", command=self.save_and_close).pack(side="left", padx=5)
@@ -54,7 +95,9 @@ class AdvancedOptionsWindow(tk.Toplevel):
     def save_and_close(self):
         self.saved_options = {
             "logseq_scan_keys": self.scan_keys_var.get(),
-            "logseq_scan_values": self.scan_values_var.get()
+            "logseq_scan_values": self.scan_values_var.get(),
+            "run_on_startup": self.run_on_startup_var.get(),
+            "minimize_to_tray": self.minimize_to_tray_var.get()
         }
         self.destroy()
 
@@ -63,13 +106,12 @@ class AdvancedOptionsWindow(tk.Toplevel):
         return self.saved_options
 
 class KvTreeApp(tk.Tk):
-    VERSION = "v0.4.2-final"
+    VERSION = "v0.5"
 
     def __init__(self):
         super().__init__()
         self.title(f"KVTree - {self.VERSION}")
         self.geometry("800x600")
-        self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         self.parser = AstParser()
         self.config_manager = ConfigManager()
@@ -88,11 +130,18 @@ class KvTreeApp(tk.Tk):
         self.stop_monitoring = threading.Event()
         self.file_monitor = FileMonitor(self, self.stop_monitoring)
         self.monitoring_thread = None
+        self.tray_icon = None
         
         style = ttk.Style(self); style.theme_use('clam')
         
         self.build_ui()
         self.load_state_to_ui()
+
+        # 初始化系统集成功能
+        self.setup_tray_icon()
+        self.protocol("WM_DELETE_WINDOW", self.hide_to_tray)
+        self.bind("<Unmap>", self.on_minimize)
+
         if self.auto_generate.get():
             self.toggle_mon() # 如果是默认开启，则启动监控
             # 增加启动时自动生成
@@ -184,8 +233,31 @@ class KvTreeApp(tk.Tk):
         options_window = AdvancedOptionsWindow(self, self.advanced_options)
         new_options = options_window.show()
         if new_options is not None:
+            # 检查是否有变更，特别是关于系统集成的选项
+            startup_changed = self.advanced_options.get("run_on_startup") != new_options.get("run_on_startup")
+            
             self.advanced_options.update(new_options)
+            
+            if startup_changed:
+                self.set_startup(new_options.get("run_on_startup"))
+
             self.set_status("高级选项已更新。")
+
+    def on_closing(self, from_tray=False):
+        """彻底关闭应用的最终处理方法"""
+        if self.tray_icon: self.tray_icon.stop()
+        self.stop_monitoring.set()
+        
+        app_data = {
+            "source_files": self.source_files,
+            "output_path": self.output_path,
+            "rules": self.rules,
+            "generated_files": self.generated_files,
+            "advanced_options": self.advanced_options,
+            "output_selection": self.output_selection
+        }
+        self.config_manager.save_config(app_data)
+        self.destroy()
 
     def get_all_files_to_process(self):
         files_to_process = {}
@@ -213,10 +285,7 @@ class KvTreeApp(tk.Tk):
         logseq_scan_enabled = self.advanced_options.get("logseq_scan_keys") or self.advanced_options.get("logseq_scan_values")
         self.logseq_generated_data.clear() # 每次重新生成时清空
         
-        # 强制将Logseq文件加入内存列表，防止被意外清除
         if logseq_scan_enabled:
-            # logseq_output_file = os.path.join(self.output_path, "Logseq属性键值.md")
-            # self.generated_files[logseq_output_file] = "Logseq Scan"
             self.logseq_parser = LogseqParser(
                 scan_keys=self.advanced_options.get("logseq_scan_keys", False),
                 scan_values=self.advanced_options.get("logseq_scan_values", False)
@@ -286,11 +355,8 @@ class KvTreeApp(tk.Tk):
                     messagebox.showerror("删除失败", f"删除旧的Logseq词库失败: {e}")
 
         # --- 清理阶段 ---
-        # 步骤 1: 更新内存中的文件全集
         self.generated_files.update(current_generated_files)
         
-        # 步骤 2: 清理那些源头已经消失的文件
-        # (通过对比proc_all开始前的状态和当前扫描结果)
         for f_path in previous_gen_paths - set(current_generated_files.keys()):
             if f_path in self.generated_files:
                 del self.generated_files[f_path]
@@ -299,23 +365,19 @@ class KvTreeApp(tk.Tk):
                 del self.output_selection[basename]
             try:
                 if os.path.exists(f_path):
-                    os.chmod(f_path, stat.S_IWRITE)
-                    os.remove(f_path)
+                    os.chmod(f_path, stat.S_IWRITE); os.remove(f_path)
             except Exception as e:
                 if not from_monitor: messagebox.showerror("删除失败", f"删除旧词库失败 {f_path}: {e}")
 
-        # 步骤 3: 根据勾选状态，从磁盘上删除文件 (但不从内存中删除)
         for f_path in self.generated_files.keys():
             basename = os.path.basename(f_path)
             if not self.output_selection.get(basename, True):
                 try:
                     if os.path.exists(f_path):
-                        os.chmod(f_path, stat.S_IWRITE)
-                        os.remove(f_path)
+                        os.chmod(f_path, stat.S_IWRITE); os.remove(f_path)
                 except Exception as e:
                     if not from_monitor: messagebox.showerror("删除失败", f"删除未勾选文件失败: {f_path}: {e}")
 
-        # 如果Logseq扫描被关闭了，确保它从内存和UI中被移除
         if not logseq_scan_enabled:
             logseq_output_file = os.path.join(self.output_path, "Logseq属性键值.md")
             if logseq_output_file in self.generated_files:
@@ -336,7 +398,6 @@ class KvTreeApp(tk.Tk):
         for f_path, source_path in sorted(self.generated_files.items()):
             basename = os.path.basename(f_path)
             
-            # 如果是新文件，默认设置为勾选
             if basename not in self.output_selection:
                 self.output_selection[basename] = True
             
@@ -347,18 +408,6 @@ class KvTreeApp(tk.Tk):
             if len(source_path) > 50: display_source = "..." + source_path[-47:]
             self.g_tree.insert("", "end", iid=f_path, values=(check_char, basename, display_source, f_path))
 
-    def on_closing(self):
-        self.stop_monitoring.set()
-        app_data = {
-            "source_files": self.source_files,
-            "output_path": self.output_path,
-            "rules": self.rules,
-            "generated_files": self.generated_files,
-            "advanced_options": self.advanced_options,
-            "output_selection": self.output_selection
-        }
-        self.config_manager.save_config(app_data)
-        self.destroy()
 
     def update_source_list(self):
         self.s_tree.delete(*self.s_tree.get_children())
@@ -428,21 +477,13 @@ class KvTreeApp(tk.Tk):
         selected_id = self.s_tree.focus()
         if not selected_id: return
         if messagebox.askyesno("确认移除", f"确定要移除 '{selected_id}' 吗？\n\n注意：如果这是一个文件夹，所有由它生成的词库文件也将被删除。"):
-            # --- 更新Logseq数据 ---
             source_info = self.source_files.get(selected_id, {})
-            files_in_source = source_info.get("files", {selected_id: 0}) # 对文件和文件夹都适用
+            files_in_source = source_info.get("files", {selected_id: 0}) 
             
-            logseq_data_changed = False
             for f_path in files_in_source:
                 if f_path in self.logseq_generated_data:
                     del self.logseq_generated_data[f_path]
-                    logseq_data_changed = True
             
-            # 如果Logseq数据变了，需要重写Logseq词库文件
-            # if logseq_data_changed:
-            #     self.proc_all(from_monitor=True) # 调用重新生成来更新文件
-            
-            # --- 原有清理逻辑 ---
             files_to_delete = []
             if source_info.get("type") == "folder":
                 for gen_path, source_path in list(self.generated_files.items()):
@@ -457,7 +498,7 @@ class KvTreeApp(tk.Tk):
                     messagebox.showerror("删除失败", f"删除生成的词库 {f_path} 失败: {e}")
 
             del self.source_files[selected_id]
-            self.proc_all(from_monitor=True) # 重新生成以更新所有状态
+            self.proc_all(from_monitor=True) 
             self.update_source_list()
             self.update_generated_list()
             self.set_status(f"'{os.path.basename(selected_id)}' 已被移除。")
@@ -480,13 +521,81 @@ class KvTreeApp(tk.Tk):
         self.status_var.set(msg); self.update_idletasks()
         
     def run_tests(self):
-        """
-        这个方法可以被保留用于未来的集成测试，
-        或者调用一个独立的测试运行器。
-        暂时留空。
-        """
         print("测试功能已被重构，请从独立的测试脚本运行。")
 
+    def set_startup(self, enable):
+        """设置或取消开机自启"""
+        if not winreg:
+            messagebox.showwarning("功能受限", "此功能仅在Windows系统上受支持。")
+            return
+
+        app_name = "KVTreeApp"
+        app_path = os.path.abspath(sys.executable)
+        
+        if 'python.exe' in app_path.lower():
+            script_path = os.path.abspath(__file__)
+            app_path = f'"{sys.executable}" "{script_path}"'
+
+        key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+        
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE | winreg.KEY_WOW64_64KEY) as key:
+                if enable:
+                    winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, app_path)
+                    self.set_status("已设置开机自启。")
+                else:
+                    try:
+                        winreg.DeleteValue(key, app_name)
+                        self.set_status("已取消开机自启。")
+                    except FileNotFoundError:
+                        pass
+        except PermissionError:
+             messagebox.showerror("权限错误", "修改启动项失败，请尝试以管理员权限运行此程序。")
+        except Exception as e:
+            messagebox.showerror("注册表操作失败", f"无法修改启动项: {e}")
+
+    # --- 托盘相关方法 ---
+    def setup_tray_icon(self):
+        """创建并配置系统托盘图标"""
+        icon_path = resource_path("icon.ico")
+        
+        try:
+            image = Image.open(icon_path)
+        except Exception as e:
+            self.after(100, lambda: messagebox.showerror("图标错误", f"图标文件 'icon.ico' 加载失败: {e}\n请确保它与程序或可执行文件位于同一目录，或在构建时已正确包含。"))
+            return
+        menu = (
+            pystray.MenuItem("显示/隐藏", self.toggle_window, default=True),
+            pystray.Menu.SEPARATOR,
+            pystray.MenuItem("退出", self.on_closing_from_tray)
+        )
+        self.tray_icon = pystray.Icon("kv_tree_app", image, f"KVTree {self.VERSION}", menu)
+        
+        threading.Thread(target=self.tray_icon.run, daemon=True).start()
+
+    def on_closing_from_tray(self):
+        self.on_closing(from_tray=True)
+
+    def toggle_window(self):
+        """切换主窗口的显示和隐藏状态"""
+        if self.state() == "normal":
+            self.withdraw()
+        else:
+            self.deiconify()
+            self.lift()
+            self.focus_force()
+
+    def hide_to_tray(self):
+        """处理窗口关闭事件（X按钮）"""
+        if self.advanced_options.get("minimize_to_tray", True):
+            self.withdraw()
+        else:
+            self.on_closing()
+
+    def on_minimize(self, event):
+        """处理窗口最小化事件"""
+        if self.state() == 'iconic' and self.advanced_options.get("minimize_to_tray", True):
+            self.after(10, self.withdraw)
 
 if __name__ == "__main__":
     app = KvTreeApp()

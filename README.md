@@ -21,6 +21,7 @@ KVTree （KVT）支持你在任意 Markdown 笔记软件内用无序列表树（
 - **文件监控与自动生成**: 启用“自动生成”后，KVTree 会在后台监控您的源文件，一旦发生更改，便会自动更新对应的词库，让您专注于内容创作。
 - **灵活的规则定义**: 支持自定义排除和替换规则，让您在提取过程中可以轻松过滤掉元数据、注释等无关内容。
 - **[新] Logseq页眉属性扫描**: 新增专门针对Logseq用户的扫描功能，可以从`.md`文件的页眉中提取属性的键（如 `tags::`）和值（如 `[[TODO]]`）来构建词库。
+- **[新] 系统集成**: 支持设置“开机自启”和“最小化到系统托盘”，提升日常使用便利性。
 - **简洁直-观的UI**: 使用轻量级的 `Tkinter` 构建，界面简洁，操作直观，无需学习成本即可上手。
 
 ---
@@ -160,7 +161,12 @@ KVTree 的核心优势在于其先进的解析引擎 `AstParser`，它摒弃了�
 
 ### 环境搭建
 
-本项目使用纯 Python 开发，无任何第三方依赖。您只需要一个标准的 Python 3.x 环境即可。
+本项目主要使用 Python 标准库开发，但引入了少量第三方库以支持更丰富的功能。
+
+- **`pystray`**: 用于实现系统托盘图标功能。
+- **`Pillow`**: 用于图像处理，例如动态创建图标。
+
+您只需要一个标准的 Python 3.x 环境，并安装所需依赖。
 
 1.  克隆本项目到本地。
 2.  建议在项目根目录创建一个虚拟环境：
@@ -168,7 +174,12 @@ KVTree 的核心优势在于其先进的解析引擎 `AstParser`，它摒弃了�
     python -m venv venv
     source venv/bin/activate  # on Windows, use `venv\Scripts\activate`
     ```
-3.  直接运行主程序：
+3.  **安装依赖**:
+   ```bash
+   pip install -r requirements.txt
+   # 或者手动安装: pip install pystray Pillow
+   ```
+4.  直接运行主程序：
     ```bash
     python kv_tree_app.py
     ```
@@ -214,17 +225,23 @@ KVTree 的核心优势在于其先进的解析引擎 `AstParser`，它摒弃了�
     ```
 
 2.  **编译**:
-    在项目根目录下运行以下命令：
+    在项目根目录下运行以下命令来创建最终的发行版：
     ```bash
-    pyinstaller --noconsole --onefile kv_tree_app.py
+    pyinstaller --name "KVTree" --onefile --noconsole --icon="icon.ico" --add-data "icon.ico;." --add-data "app_logic;app_logic" kv_tree_app.py
     ```
-    *   `--noconsole`: 运行时不显示控制台窗口。
-    *   `--onefile`: 将所有内容打包到单个 `.exe` 文件中。
+    参数详解:
+    *   `--name "KVTree"`: 指定生成的 exe 文件名为 `KVTree.exe`。
+    *   `--onefile`: 将所有依赖和资源打包到**单个可执行文件**中。
+    *   `--noconsole` (或 `--windowed`): **无黑窗运行**，这是GUI应用的推荐设置。
+    *   `--icon="icon.ico"`: 将 `icon.ico` 设置为 `exe` 文件的**程序图标**。
+    *   `--add-data "icon.ico;."`: 将图标文件**包含到** `exe` 内部，以便程序在运行时能找到它并用于系统托盘。
+    *   `--add-data "app_logic;app_logic"`: **非常重要**，此命令会将整个 `app_logic` 文件夹及其中的所有 `.py` 脚本都包含到 `exe` 中，确保核心逻辑模块能够被正确加载。
 
 3.  **结果**:
     编译完成后，可在 `dist` 文件夹中找到 `kv_tree_app.exe`。
 
 ## 更新日志
+- ✔️V0.5 [[让KVT 能随系统启动，最小化时在托盘]]
 - ✔️V0.4
 	- [[KVT选择输出]]（在结果列表可以勾选，被勾选的才会被输出，不被勾选的会被清理且不会输出）
 - ✔️V0.3

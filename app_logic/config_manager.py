@@ -25,7 +25,9 @@ class ConfigManager:
             "generated_files": {},
             "advanced_options": {
                 "logseq_scan_keys": False,
-                "logseq_scan_values": False
+                "logseq_scan_values": False,
+                "run_on_startup": False,
+                "minimize_to_tray": True
             },
             "output_selection": {}
         }
@@ -57,7 +59,10 @@ class ConfigManager:
                 self.config["rules"] = DEFAULT_RULES
 
             # 加载高级选项，如果不存在则使用默认值
-            self.config["advanced_options"] = loaded_config.get("advanced_options", self.config["advanced_options"])
+            # 加载高级选项，并确保新键存在
+            loaded_advanced = loaded_config.get("advanced_options", {})
+            default_advanced = self.config["advanced_options"]
+            self.config["advanced_options"] = {**default_advanced, **loaded_advanced}
             
             # 加载输出选择，如果不存在则使用默认值
             self.config["output_selection"] = loaded_config.get("output_selection", {})
