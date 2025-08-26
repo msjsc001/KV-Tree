@@ -22,7 +22,6 @@ class ConfigManager:
             "source_files": {},
             "output_path": os.getcwd(),
             "rules": DEFAULT_RULES,
-            "generated_files": {},
             "advanced_options": {
                 "logseq_scan_keys": False,
                 "logseq_scan_values": False,
@@ -48,12 +47,6 @@ class ConfigManager:
             
             self.config["output_path"] = loaded_config.get("output_path", os.getcwd())
             
-            loaded_gen_files = loaded_config.get("generated_files", {})
-            if isinstance(loaded_gen_files, list):
-                self.config["generated_files"] = {path: "N/A" for path in loaded_gen_files}
-            else:
-                self.config["generated_files"] = loaded_gen_files
-
             self.config["rules"] = loaded_config.get("rules", DEFAULT_RULES)
             if not self.config["rules"].strip():
                 self.config["rules"] = DEFAULT_RULES
@@ -78,7 +71,6 @@ class ConfigManager:
             "source_files": app_data.get("source_files", {}),
             "output_path": app_data.get("output_path", os.getcwd()),
             "rules": app_data.get("rules", DEFAULT_RULES),
-            "generated_files": app_data.get("generated_files", {}),
             "advanced_options": app_data.get("advanced_options", {}),
             "output_selection": app_data.get("output_selection", {})
         }

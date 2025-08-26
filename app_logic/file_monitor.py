@@ -1,77 +1,96 @@
 # app_logic/file_monitor.py
-# 用于监控文件和文件夹的变化
+# 使用 watchdog 实现高效的文件和文件夹变化监控
+# V0.7: 传递更详细的事件信息以支持增量更新
 
-import os
 import time
-import threading
+import os
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+
+class AppEventHandler(FileSystemEventHandler):
+    """处理文件系统事件，并触发UI回调，传递具体事件信息"""
+
+    def __init__(self, app_instance):
+        super().__init__()
+        self.app = app_instance
+        self.last_event_time = {} # 使用字典记录每个文件的最后事件时间，以进行更精细的防抖
+
+    def process_event(self, event_type, path):
+        """
+        对事件进行防抖处理，并调用主程序的回调。
+        """
+        # 只处理.md文件，忽略其他文件和目录事件
+        if not path.endswith('.md'):
+            return
+
+        current_time = time.time()
+        
+        # 防抖检查：如果同一个文件在1秒内连续触发，则忽略
+        if path in self.last_event_time and current_time - self.last_event_time[path] < 1.0:
+            return
+        
+        self.last_event_time[path] = current_time
+        
+        # 调用主应用的回调方法，传递事件类型和路径
+        self.app.queue_process_file(event_type, path)
+    
+    def on_modified(self, event):
+        if not event.is_directory:
+            self.process_event("modified", event.src_path)
+
+    def on_created(self, event):
+        if not event.is_directory:
+            self.process_event("created", event.src_path)
+
+    def on_deleted(self, event):
+        if not event.is_directory:
+            self.process_event("deleted", event.src_path)
+
+    def on_moved(self, event):
+        if not event.is_directory:
+            # 一个移动事件等同于 "从旧位置删除" 和 "在新位置创建"
+            self.process_event("deleted", event.src_path)
+            self.process_event("created", event.dest_path)
+
 
 class FileMonitor:
-    def __init__(self, app_instance, stop_event):
+    """管理 watchdog 观察者，启动和停止监控"""
+
+    def __init__(self, app_instance):
         self.app = app_instance
-        self.stop_monitoring = stop_event
+        self.observer = None
+        self.event_handler = AppEventHandler(self.app)
 
-    def rescan_folder_if_needed(self, folder_path, data):
+    def start(self, paths_to_watch):
         """
-        重新扫描文件夹，如果文件列表或mtime有变则更新，并返回是否有变化。
+        启动监控。
         """
-        try:
-            current_mtime = os.path.getmtime(folder_path)
-            # 检查文件夹本身的mtime，这可以捕获顶层的文件/夹增删
-            if data.get("mtime", 0) != current_mtime:
-                self.app.set_status(f"检测到文件夹 {os.path.basename(folder_path)} 结构变化，重新扫描...")
-                new_files_data = {}
-                for root, _, files in os.walk(folder_path):
-                    for file in files:
-                        if file.endswith('.md'):
-                            f_path = os.path.normpath(os.path.join(root, file))
-                            try:
-                                new_files_data[f_path] = os.path.getmtime(f_path)
-                            except OSError:
-                                continue
-                data["files"] = new_files_data
-                data["mtime"] = current_mtime
-                return True
+        if self.observer and self.observer.is_alive():
+            self.stop() 
 
-            # 检查文件夹内现有文件的mtime
-            for f_path, mtime in data.get("files", {}).items():
-                if os.path.exists(f_path):
-                    if os.path.getmtime(f_path) != mtime:
-                        self.app.set_status(f"检测到 {os.path.basename(f_path)} 内容变化...")
-                        # 只需返回True，proc_all会处理所有文件的重新生成
-                        return True
-        except OSError:
-            return False # 文件夹或文件可能已被删除
-        return False
-
-    def file_monitor_worker(self):
-        while not self.stop_monitoring.is_set():
-            changed = False
-            # 创建一个副本以安全地迭代
-            source_items = list(self.app.source_files.items())
-
-            for path, data in source_items:
-                if not data.get("enabled") or not os.path.exists(path):
-                    continue
-                
-                try:
-                    item_type = data.get("type", "file")
-                    if item_type == "file":
-                        mtime = os.path.getmtime(path)
-                        if data.get("mtime", 0) != mtime:
-                            self.app.set_status(f"检测到 {os.path.basename(path)} 更改...")
-                            data["mtime"] = mtime
-                            changed = True
-                    elif item_type == "folder":
-                        if self.rescan_folder_if_needed(path, data):
-                            changed = True
-
-                except OSError:
-                    # 文件或文件夹可能在检查期间被删除
-                    continue
+        self.observer = Observer()
+        
+        watched_paths = set()
+        for path in paths_to_watch:
+            if not os.path.exists(path):
+                continue
             
-            if changed:
-                self.app.set_status("检测到更改，正在重新生成...")
-                self.app.proc_all(from_monitor=True)
-                self.app.set_status("自动生成完成。")
+            watch_path = os.path.dirname(path) if os.path.isfile(path) else path
+            
+            if watch_path not in watched_paths:
+                self.observer.schedule(self.event_handler, watch_path, recursive=True)
+                watched_paths.add(watch_path)
+        
+        if watched_paths:
+            self.observer.start()
+            self.app.set_status(f"监控已开启，正在监视 {len(watched_paths)} 个位置。")
+        else:
+            self.app.set_status("监控开启，但无启用的源可供监视。")
 
-            time.sleep(3)
+    def stop(self):
+        """停止监控"""
+        if self.observer and self.observer.is_alive():
+            self.observer.stop()
+            self.observer.join()
+            self.observer = None
+            self.app.set_status("监控已关闭。")

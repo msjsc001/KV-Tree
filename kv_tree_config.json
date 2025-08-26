@@ -1,47 +1,12 @@
 {
-    "source_files": {
-        "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5": {
-            "enabled": true,
-            "type": "folder",
-            "files": {
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\\u6d4b\u8bd5\u5199\u8bcd.md": 1756186340.5531895,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\a\u56fe.md": 1752465562.7721958,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\a\u7c7b.md": 1752296471.6941726,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\b\u56fe.md": 1752400371.1969273,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\b\u7c7b.md": 1752296467.6723201,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\contents.md": 1704255178.0,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\c\u56fe.md": 1752465772.706809,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\excalidraw-library-items-storage.md": 1751868036.319696,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\hls__the-greatest-trading-book-ever_1657527822057_0_1755915563451_0.md": 1755915886.0165143,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\hls__\u82cf\u83f2\u7684\u4e16\u754c_1750579279087_0_1752562944044_0.md": 1752562954.8374112,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\Logseq\u7b14\u8bb0\u6837\u672c.md": 1755916779.6440258,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\\u4e8b\u4ef6\u8bb0\u5f55.md": 1746257970.167889,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\\u4ea4\u6613.md": 1726792847.647615,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\\u5c5e\u6027\u6d4b\u8bd5.md": 1754575086.7025807,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\\u624b\u673a\u7b14\u8bb0.md": 1755914867.3481913,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\\u624b\u673a\u7b14\u8bb0.sync-conflict-20250727-205948-6I25DMH.md": 1754576242.1250367,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\\u624b\u673a\u7b14\u8bb0.sync-conflict-20250729-105900-6I25DMH.md": 1754576242.135585,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\\u641c\u7d22\u6d4b\u8bd5.md": 1754577129.7382443,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\\u65e5\u5fd7.md": 1712056954.6361935,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\\u7b14\u8bb0\u529f\u80fd\u6d4b\u8bd5.md": 1752465454.9494696,
-                "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5\\l-phone-logseq\\pages\\\u8fc1\u79fb\u601d\u6e90\u6d4b\u8bd5.md": 1752563277.1367104
-            },
-            "mtime": 1756098460.6926367
-        }
-    },
-    "output_path": "D:/\u8f6f\u4ef6\u7f16\u5199/QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939/\u751f\u6210\u7684\u8bcd\u5e93\u8f93\u51fa-\u7528\u4e8e\u6d4b\u8bd5",
+    "source_files": {},
+    "output_path": "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93",
     "rules": "[\u6392\u9664\u89c4\u5219]\n; \u6bcf\u884c\u4e00\u4e2a\u6b63\u5219\u8868\u8fbe\u5f0f\uff0c\u5339\u914d\u5230\u7684\u6574\u884c\u5185\u5bb9\u90fd\u5c06\u88ab\u5ffd\u7565\n\u6392\u9664\u884c_1 = ^\\s*id::.*\n\u6392\u9664\u884c_2 = ^\\s*collapsed::.*\n\n[\u66ff\u6362\u89c4\u5219]\n; \u5c06\u5339\u914d\u5230\u7684\u5185\u5bb9\u66ff\u6362\u4e3a\u7a7a\n\u66ff\u6362\u5185\u5bb9_1 = \\(\\(.*?\\)\\)",
-    "generated_files": {
-        "D:/\u8f6f\u4ef6\u7f16\u5199/QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939/\u751f\u6210\u7684\u8bcd\u5e93\u8f93\u51fa-\u7528\u4e8e\u6d4b\u8bd5\\#KV\u6811-\u8bfb\u4e66\u8bcd\u5e93.md": "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5",
-        "D:/\u8f6f\u4ef6\u7f16\u5199/QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939/\u751f\u6210\u7684\u8bcd\u5e93\u8f93\u51fa-\u7528\u4e8e\u6d4b\u8bd5\\#KV\u6811-\u5176\u4ed6\u8bcd\u5e93.md": "D:\\\u8f6f\u4ef6\u7f16\u5199\\QuickKV-KVTreeApp-\u8bcd\u6811\u8f6c\u8bcd\u5e93 - \u6d4b\u8bd5\u6587\u4ef6\u5939\\\u6e90\u6587\u4ef6-\u7528\u4e8e\u6d4b\u8bd5"
-    },
     "advanced_options": {
-        "logseq_scan_keys": true,
-        "logseq_scan_values": true
+        "logseq_scan_keys": false,
+        "logseq_scan_values": false,
+        "run_on_startup": false,
+        "minimize_to_tray": true
     },
-    "output_selection": {
-        "#KV\u6811-\u5176\u4ed6\u8bcd\u5e93.md": true,
-        "#KV\u6811-\u8bfb\u4e66\u8bcd\u5e93.md": true,
-        "Logseq\u5c5e\u6027\u952e\u503c.md": true
-    }
+    "output_selection": {}
 }
