@@ -13,7 +13,7 @@ class LogseqParser:
         self.scan_keys = scan_keys
         self.scan_values = scan_values
         # 匹配 "key::" 格式
-        self.key_pattern = re.compile(r'^\s*([a-zA-Z0-9_-]+)::')
+        self.key_pattern = re.compile(r'^\s*([^\s:]+)::')
         # 匹配 "[[value]]" 格式
         self.value_pattern = re.compile(r'\[\[(.*?)\]\]')
 

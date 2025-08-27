@@ -70,7 +70,7 @@ class AdvancedOptionsWindow(tk.Toplevel):
         self.wait_window(); return self.saved_options
 
 class KvTreeApp(tk.Tk):
-    VERSION = "0.7"
+    VERSION = "0.8"
 
     def __init__(self):
         super().__init__()
