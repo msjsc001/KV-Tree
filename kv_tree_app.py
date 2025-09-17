@@ -58,8 +58,8 @@ class AdvancedOptionsWindow(tk.Toplevel):
         ttk.Checkbutton(common_lf, text="最小化时在托盘 (默认勾选)", variable=self.minimize_to_tray_var).pack(anchor="w", pady=2)
         scan_frame = ttk.Frame(notebook); notebook.add(scan_frame, text="扫描")
         logseq_lf = ttk.LabelFrame(scan_frame, text="Logseq md属性扫描", padding="10"); logseq_lf.pack(padx=10, pady=10, fill="x")
-        ttk.Checkbutton(logseq_lf, text="页头属性键录入为词条", variable=self.scan_keys_var).pack(anchor="w", pady=2)
-        ttk.Checkbutton(logseq_lf, text="页头属性值录入为词条-带双方括号[[]]的", variable=self.scan_values_var).pack(anchor="w", pady=2)
+        ttk.Checkbutton(logseq_lf, text="页内属性键录入为词条", variable=self.scan_keys_var).pack(anchor="w", pady=2)
+        ttk.Checkbutton(logseq_lf, text="页内属性值录入为词条-带双方括号[[]]的", variable=self.scan_values_var).pack(anchor="w", pady=2)
         button_frame = ttk.Frame(self); button_frame.pack(pady=10)
         ttk.Button(button_frame, text="保存", command=self.save_and_close).pack(side="left", padx=5)
         ttk.Button(button_frame, text="取消", command=self.destroy).pack(side="left", padx=5)
@@ -70,7 +70,7 @@ class AdvancedOptionsWindow(tk.Toplevel):
         self.wait_window(); return self.saved_options
 
 class KvTreeApp(tk.Tk):
-    VERSION = "0.8"
+    VERSION = "0.9"
 
     def __init__(self):
         super().__init__()

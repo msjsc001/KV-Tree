@@ -30,20 +30,15 @@ class LogseqParser:
         lines = content.splitlines()
 
         for line in lines:
-            # 根据我们商定的规则，我们只扫描文件头部。
-            # 一旦遇到非属性行（如空行或正文），就停止扫描。
-            clean_line = line.strip()
-            if not clean_line:
-                break # 遇到空行，停止
+            # 现在我们需要扫描整个文件，而不是仅仅扫描头部。
+            # 因此，我们将移除原来用于在遇到非属性行时中断扫描的逻辑。
             
-            # 使用一个更通用的模式来判断是否是属性行
-            is_property_line = '::' in clean_line
+            # 检查行中是否包含属性分隔符 '::'
+            is_property_line = '::' in line
             
-            if not is_property_line and not clean_line.startswith('-'):
-                 # 如果不是属性行，并且不是列表项（通常是正文的开始），就停止
-                 pass
-            elif not is_property_line and clean_line.startswith('-'):
-                break 
+            if not is_property_line:
+                # 如果当前行不是属性行，则跳过，继续检查下一行。
+                continue
 
             # 提取属性键
             if self.scan_keys:
