@@ -4,9 +4,6 @@ KVTree (KVT) 是一款强大的桌面端效率工具，专为 [QuickKV (QKV)](ht
 
 KVT 会在后台静默运行，自动将您笔记中的大纲结构实时编译为 QuickKV 标准词库并输出到指定目录。无论是十几个词条还是百万量级的海量数据，**KVTree 都能让您对“词库里到底有什么词”了如指掌**。
 
-<img alt="PixPin_2025-08-26_15-03-21" src="https://github.com/user-attachments/assets/5ca1791c-a537-4a8c-9f71-dd118ff7ff9c" />
-<img src="https://github.com/user-attachments/assets/a65d8d84-97b6-413e-89e9-0883df4dbcb9" />
-*图源：一图看懂 KVTree 工作流*
 
 <p align="center">
   <a href="https://github.com/msjsc001/KV-Tree/releases/latest"><img src="https://img.shields.io/github/v/release/msjsc001/KV-Tree"></a>
@@ -33,6 +30,10 @@ KVT 会在后台静默运行，自动将您笔记中的大纲结构实时编译�
 ---
 
 ## 🚀 极速上手指南
+
+一图看懂功能演示V0.5-V0.9版：
+<img alt="PixPin_2025-08-26_15-03-21" src="https://github.com/user-attachments/assets/5ca1791c-a537-4a8c-9f71-dd118ff7ff9c" />
+<img src="https://github.com/user-attachments/assets/a65d8d84-97b6-413e-89e9-0883df4dbcb9" />
 
 ### 第 1 步：标记您的笔记
 在任意 `.md` 笔记的行尾，打上 `#KV树-词库名称` 格式的标签。
