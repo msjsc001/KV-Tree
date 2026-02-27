@@ -3,6 +3,7 @@ import threading
 import os
 import stat
 import time
+import concurrent.futures
 from src.logic.ast_parser import AstParser
 from src.logic.logseq_parser import LogseqParser
 from src.utils.file_utils import atomic_write
@@ -76,7 +77,10 @@ class TaskDispatcher:
         dirty_outputs = set()
         
         for event_type, path in batch:
-            old, new = self._update_cache_for_file(path, deleted=(event_type == 'deleted'))
+            old, new = self._update_cache_for_file(path, deleted=(event_type == 'deleted'),
+                                                    rules=rules, adv_opts=adv_opts,
+                                                    output_path_base=output_path_base,
+                                                    logseq_exclude_keys=logseq_exclude_keys)
             dirty_outputs.update(old.keys())
             dirty_outputs.update(new.keys())
             
@@ -88,7 +92,7 @@ class TaskDispatcher:
         self.ui_cb['set_status'](f"批量更新完成。")
         
     def _execute_initialize(self):
-        self.ui_cb['set_status']("启动检查：正在校验缓存和文件...")
+        self.ui_cb['set_status']("极速启动：正在多线程校验缓存和解析文件...")
         self.ui_cb['update_progress'](mode='determinate', val=0)
         
         all_source_files = self._get_all_source_files()
@@ -96,9 +100,13 @@ class TaskDispatcher:
         cached_paths = self.cache_manager.get_all_cached_paths()
         total_files = len(all_source_files)
         
+        files_to_update = []
+        
+        # 1. Quick initial sync and filter
         for i, file_path in enumerate(all_source_files):
-            self.ui_cb['set_status'](f"校验中({i+1}/{total_files}): {os.path.basename(file_path)}")
-            self.ui_cb['update_progress'](val=(i+1)/total_files*100 if total_files > 0 else 0)
+            if i % 100 == 0:
+                self.ui_cb['set_status'](f"对比文件时间戳 ({i}/{total_files})...")
+                self.ui_cb['update_progress'](val=(i/total_files*50) if total_files > 0 else 0)
             
             if not os.path.exists(file_path): 
                 continue
@@ -106,12 +114,50 @@ class TaskDispatcher:
             cached_entry = self.cache_manager.get_entry(file_path)
             current_mtime = os.path.getmtime(file_path)
             if not cached_entry or cached_entry.get("mtime") != current_mtime:
-                old, new = self._update_cache_for_file(file_path)
-                dirty_outputs.update(old.keys()); dirty_outputs.update(new.keys())
+                files_to_update.append(file_path)
+                
+        # 2. Parallel Processing
+        if files_to_update:
+            total_updates = len(files_to_update)
+            self.ui_cb['set_status'](f"启用多核并发引擎解析 {total_updates} 个变动文件...")
+            
+            rules = self.state.get_rules()
+            adv_opts = self.state.get_advanced_options()
+            output_path_base = self.state.get_output_path()
+            logseq_exclude_keys = self.state.get_logseq_exclude_keys()
+
+            completed = 0
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                # Map paths to future logic manually to handle cache manager locking
+                tasks = [
+                    executor.submit(
+                        self._parse_single_file_stateless,
+                        path, rules, adv_opts, output_path_base, logseq_exclude_keys
+                    ) for path in files_to_update
+                ]
+                
+                for future in concurrent.futures.as_completed(tasks):
+                    path = files_to_update[tasks.index(future)] # Get original path from task list
+                    try:
+                        new_data = future.result()
+                        # Synchronous cache update
+                        old = self.cache_manager.get_outputs_for_file(path)
+                        self.cache_manager.update_entry(path, os.path.getmtime(path), new_data)
+                        dirty_outputs.update(old.keys())
+                        dirty_outputs.update(new_data.keys())
+                    except Exception as exc:
+                        print(f'{path} generated an exception: {exc}')
+                    
+                    completed += 1
+                    if completed % 50 == 0 or completed == total_updates:
+                        self.ui_cb['set_status'](f"深度多核解析中 ({completed}/{total_updates})...")
+                        self.ui_cb['update_progress'](val=50 + (completed/total_updates*40))
         
+        self.ui_cb['set_status']("正在清理失效缓存...")
         for file_path in cached_paths:
             if file_path not in all_source_files:
-                old, _ = self._update_cache_for_file(file_path, deleted=True)
+                old = self.cache_manager.get_outputs_for_file(file_path)
+                self.cache_manager.remove_entry(file_path)
                 dirty_outputs.update(old.keys())
 
         if dirty_outputs:
@@ -136,16 +182,30 @@ class TaskDispatcher:
     def _execute_scan_folder(self, folder_path):
         self.ui_cb['set_status'](f"正在后台扫描: {folder_path}...")
         self.ui_cb['update_progress'](mode='determinate', val=0)
-        scanned_files = {}
-        try: all_files = [os.path.join(r, f) for r, _, fs in os.walk(folder_path) for f in fs if f.endswith('.md')]
-        except Exception as e: print(f"Error scanning folder: {e}"); all_files = []
         
-        total_scan = len(all_files)
-        for i, file_path in enumerate(all_files):
-            self.ui_cb['set_status'](f"扫描中 ({i+1}/{total_scan}): {os.path.basename(file_path)}")
-            self.ui_cb['update_progress'](val=(i+1)/total_scan*100)
-            try: scanned_files[file_path] = os.path.getmtime(file_path)
-            except OSError: continue
+        def _fast_scan_md_with_mtime(path):
+            results = {}
+            try:
+                with os.scandir(path) as it:
+                    for entry in it:
+                        if entry.is_file() and entry.name.endswith('.md'):
+                            try:
+                                results[entry.path] = entry.stat().st_mtime
+                            except OSError: pass
+                        elif entry.is_dir():
+                            results.update(_fast_scan_md_with_mtime(entry.path))
+            except Exception: pass
+            return results
+            
+        self.ui_cb['set_status'](f"正在建立极速索引: {folder_path}...")
+        scanned_files = _fast_scan_md_with_mtime(folder_path)
+        
+        total_scan = len(scanned_files)
+        # Dummy progress update since we already got all mtimes cleanly
+        if total_scan > 0:
+            self.ui_cb['update_progress'](val=100)
+        else:
+            self.ui_cb['update_progress'](val=0)
         
         self.ui_cb['update_progress'](val=0)
         # Notify UI to ask user
@@ -177,32 +237,45 @@ class TaskDispatcher:
         except Exception as e:
             self.ui_cb['show_error']("清除缓存失败", str(e))
 
-    def _update_cache_for_file(self, path, deleted=False):
+    def _update_cache_for_file(self, path, deleted=False, rules=None, adv_opts=None, output_path_base=None, logseq_exclude_keys=None):
         old = self.cache_manager.get_outputs_for_file(path)
         new = {}
         if deleted: self.cache_manager.remove_entry(path)
         else:
             if not os.path.exists(path): return old, new
-            new = self._parse_single_file(path)
+            
+            # If rules/options are not provided, fetch them from state (for non-batch updates)
+            if rules is None: rules = self.state.get_rules()
+            if adv_opts is None: adv_opts = self.state.get_advanced_options()
+            if output_path_base is None: output_path_base = self.state.get_output_path()
+            if logseq_exclude_keys is None: logseq_exclude_keys = self.state.get_logseq_exclude_keys()
+
+            new = self._parse_single_file_stateless(path, rules, adv_opts, output_path_base, logseq_exclude_keys)
             self.cache_manager.update_entry(path, os.path.getmtime(path), new)
         return old, new
 
-    def _parse_single_file(self, file_path):
+    @staticmethod
+    def _parse_single_file_stateless(file_path: str, rules: list, adv_opts: dict, output_path_base: str, logseq_exclude_keys: set) -> dict:
+        """
+        Pure function for parsing a single file. Safe to run in a thread pool.
+        """
         outputs = {}
         try:
             with open(file_path, "r", encoding="utf-8") as f: content = f.read()
-            res, _ = self.parser.parse(content, self.state.get_rules())
-            output_path_base = self.state.get_output_path()
+            # Instantiate fresh parsers to avoid thread state corruption
+            parser = AstParser()
+            res, _ = parser.parse(content, rules=rules)
             
             for lib, entries in res.items(): outputs[os.path.join(output_path_base, lib)] = "\n".join(entries)
             
-            adv_opts = self.state.get_advanced_options()
-            if adv_opts.get("logseq_scan_keys") or adv_opts.get("logseq_scan_values"):
-                if not self.logseq_parser: self.logseq_parser = LogseqParser(scan_keys=adv_opts.get("logseq_scan_keys", False), scan_values=adv_opts.get("logseq_scan_values", False))
-                # update parser config
-                self.logseq_parser.scan_keys = adv_opts.get("logseq_scan_keys", False)
-                self.logseq_parser.scan_values = adv_opts.get("logseq_scan_values", False)
-                logseq_res = self.logseq_parser.parse_file_content(content)
+            if adv_opts.get("logseq_scan_keys") or adv_opts.get("logseq_scan_values") or adv_opts.get("logseq_scan_pure_values"):
+                logseq_parser = LogseqParser(
+                    scan_keys=adv_opts.get("logseq_scan_keys", False),
+                    scan_values=adv_opts.get("logseq_scan_values", False),
+                    scan_pure_values=adv_opts.get("logseq_scan_pure_values", False),
+                    exclude_keys=logseq_exclude_keys
+                )
+                logseq_res = logseq_parser.parse_file_content(content)
                 if logseq_res:
                     out_path = os.path.join(output_path_base, "Logseq属性键值.md")
                     existing = set(outputs.get(out_path, "").splitlines()); existing.update(logseq_res)
@@ -218,9 +291,23 @@ class TaskDispatcher:
         
         full_content = "\n".join(sorted(list(all_lines)))
         try:
+            basename = os.path.basename(output_path)
+            
+            # Check the blacklist first! If blacklisted, block everything.
+            blacklist = self.state.get_blacklist()
+            if basename in blacklist:
+                if os.path.exists(output_path):
+                    try:
+                        os.chmod(output_path, stat.S_IWRITE)
+                        os.remove(output_path)
+                    except Exception: pass
+                # Still add it to active outputs so it shows up in UI (to be un-blacklisted later if needed)
+                self.state.add_active_output(output_path, "多元")
+                return
+
             # Check if this output is enabled using AppState lock mechanism
             selection = self.state.get_output_selection()
-            is_checked = selection.get(os.path.basename(output_path), True)
+            is_checked = selection.get(basename, False)
             
             if is_checked:
                 # Issue 4 Risk Mitigation: Atomic file saving to prevent corruption
@@ -228,8 +315,10 @@ class TaskDispatcher:
                 self.state.add_active_output(output_path, "多元")
             else:
                 if os.path.exists(output_path):
-                    os.chmod(output_path, stat.S_IWRITE)
-                    os.remove(output_path)
+                    try:
+                        os.chmod(output_path, stat.S_IWRITE)
+                        os.remove(output_path)
+                    except Exception: pass
         except Exception as e: print(f"Error writing {output_path}: {e}")
 
     def _get_all_source_files(self):

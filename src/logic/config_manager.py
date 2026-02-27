@@ -29,7 +29,8 @@ class ConfigManager:
                 "minimize_to_tray": True,
                 "auto_generate": True
             },
-            "output_selection": {}
+            "output_selection": {},
+            "window_geometry": ""
         }
 
     def load_config(self):
@@ -48,9 +49,13 @@ class ConfigManager:
             
             self.config["output_path"] = loaded_config.get("output_path", os.getcwd())
             
-            self.config["rules"] = loaded_config.get("rules", DEFAULT_RULES)
-            if not self.config["rules"].strip():
-                self.config["rules"] = DEFAULT_RULES
+            rules_val = loaded_config.get("rules", DEFAULT_RULES)
+            if isinstance(rules_val, str) and not rules_val.strip():
+                rules_val = DEFAULT_RULES
+            elif isinstance(rules_val, list) and not rules_val:
+                # If they saved an empty list from the previous phase, reset it so they see defaults
+                rules_val = DEFAULT_RULES
+            self.config["rules"] = rules_val
 
             # 加载高级选项，如果不存在则使用默认值
             # 加载高级选项，并确保新键存在
@@ -60,6 +65,9 @@ class ConfigManager:
             
             # 加载输出选择，如果不存在则使用默认值
             self.config["output_selection"] = loaded_config.get("output_selection", {})
+            
+            # 加载窗口大小与位置
+            self.config["window_geometry"] = loaded_config.get("window_geometry", "")
 
         except (FileNotFoundError, json.JSONDecodeError):
             # 如果文件不存在或无效，则使用默认配置
@@ -73,7 +81,8 @@ class ConfigManager:
             "output_path": app_data.get("output_path", os.getcwd()),
             "rules": app_data.get("rules", DEFAULT_RULES),
             "advanced_options": app_data.get("advanced_options", {}),
-            "output_selection": app_data.get("output_selection", {})
+            "output_selection": app_data.get("output_selection", {}),
+            "window_geometry": app_data.get("window_geometry", "")
         }
         with open(self.config_file, "w", encoding="utf-8") as f:
             json.dump(config_to_save, f, indent=4)

@@ -58,7 +58,7 @@ def main():
         # Save final configs upon exiting the mainloop.
         # This guarantees data safety and decoupling
         if not getattr(app_state, "skip_save", False):
-            final_config = app_state.get_serializable_config()
+            final_config = app_state.get_all_data()
             config_manager.save_config(final_config)
             cache_manager.save_cache()
 

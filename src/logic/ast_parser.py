@@ -74,7 +74,7 @@ class AstParser:
 
         return root
 
-    def parse(self, text: str, rules_text: str = "") -> tuple[dict, list]:
+    def parse(self, text: str, rules: dict = None) -> tuple[dict, list]:
         """
         解析文本并返回结果。
         这是将替换旧解析器的主入口点。
@@ -85,8 +85,7 @@ class AstParser:
         
         # 1. 清理和预处理文本行
         lines = text.split('\n')
-        exclude_patterns, replace_patterns = self._parse_rules(rules_text)
-        processed_lines = self._preprocess_lines(lines, exclude_patterns, replace_patterns)
+        processed_lines = self._preprocess_lines(lines, rules)
 
         # 2. 构建 AST
         root = self._build_ast(processed_lines)
@@ -98,23 +97,54 @@ class AstParser:
         final_results = {lib: list(dict.fromkeys(entries)) for lib, entries in kv_trees.items()}
         return final_results, [] # 暂时不处理冲突
 
-    def _parse_rules(self, rules_text: str) -> tuple[list, list]:
-        """解析规则文本。"""
-        if not rules_text:
-            return [], []
-        exclude_patterns = [re.compile(p) for p in re.findall(r'排除行_.*=\s*(.*)', rules_text)]
-        replace_patterns = [(re.compile(p), '') for p in re.findall(r'替换内容_.*=\s*(.*)', rules_text)]
-        return exclude_patterns, replace_patterns
+    def _preprocess_lines(self, lines: list[str], rules: dict) -> list[str]:
+        """根据规则列表清理和替换内容。"""
+        if not rules or not isinstance(rules, dict):
+            return lines
+            
+        line_rules = rules.get("line_rules", [])
+        content_rules = rules.get("content_rules", [])
 
-    def _preprocess_lines(self, lines: list[str], exclude_patterns: list, replace_patterns: list) -> list[str]:
-        """根据规则清理行。"""
-        filtered_lines = [line for line in lines if not any(p.search(line) for p in exclude_patterns)]
-        
+        compiled_line = []
+        for r in line_rules:
+            try:
+                compiled_line.append({
+                    "match": re.compile(r.get("match", "")),
+                    "replace": r.get("replace", "")
+                })
+            except Exception: pass
+            
+        compiled_content = []
+        for r in content_rules:
+            try:
+                compiled_content.append({
+                    "match": re.compile(r.get("match", "")),
+                    "replace": r.get("replace", "")
+                })
+            except Exception: pass
+
         processed_lines = []
-        for line in filtered_lines:
-            for p, r in replace_patterns:
-                line = p.sub(r, line)
+        for line in lines:
+            drop_line = False
+            # 1. 优先执行“排除行”规则
+            for cr in compiled_line:
+                if cr["match"].search(line):
+                    repl = cr["replace"]
+                    if not repl:
+                        drop_line = True
+                        break
+                    else:
+                        line = cr["match"].sub(repl, line)
+            
+            if drop_line:
+                continue
+                
+            # 2. 执行“排除内容”规则
+            for cr in compiled_content:
+                line = cr["match"].sub(cr["replace"], line)
+                
             processed_lines.append(line)
+
         return processed_lines
 
     def _extract_data(self, root: Node) -> defaultdict:
@@ -154,7 +184,9 @@ class AstParser:
 
         # Phase 2: Process all remaining single-line tags
         for node in all_nodes:
-            if node in processed_nodes or not node.tag:
+            # Bug fix: If a node has a tag, AND it is a pure single-line tag (no 'mode' like 父与子),
+            # it MUST be rendered as a single-line output EVEN IF it was already processed as part of a block.
+            if not node.tag or node.tag.get('mode'):
                 continue
             
             lib = node.tag['lib']
