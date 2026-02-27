@@ -51,28 +51,56 @@ class ToolTip(object):
             tw.destroy()
 
 class DynamicListWindow(tk.Toplevel):
+    NUM_COLUMNS = 2  # 两列布局
+    
     def __init__(self, parent, title, instruction, initial_items, placeholder="在这里输入匹配内容..."):
         super().__init__(parent)
         self.title(title)
-        self.geometry("550x450")
+        self.geometry("750x550")
         self._center_window(parent)
         self.transient(parent)
         self.grab_set()
         
         self.placeholder = placeholder
-        self.rows = []
+        self.rows = []  # [(row_frame, entry_var, badge_lbl), ...]
+        self._grid_row_idx = 0  # grid 行计数器
         
         # Header Info
-        info_lbl = ttk.Label(self, text=instruction, foreground="gray", justify=tk.LEFT, wraplength=500)
-        info_lbl.pack(anchor="w", padx=15, pady=(15, 5))
+        info_lbl = ttk.Label(self, text=instruction, foreground="gray", justify=tk.LEFT, wraplength=710)
+        info_lbl.pack(anchor="w", padx=15, pady=(15, 2))
         
-        # Scrollable Canvas
+        # 前缀匹配说明
+        prefix_info = ttk.Label(self, text='💡 提示：条目末尾加 * 表示前缀匹配。例如 card-* 会匹配 card-last-reviewed、card-repeats 等所有以 card- 开头的键。', 
+                                foreground="#0078D4", justify=tk.LEFT, wraplength=710, font=("", 9))
+        prefix_info.pack(anchor="w", padx=15, pady=(0, 8))
+        
+        # ===== 搜索栏和工具按钮  =====
+        toolbar = ttk.Frame(self)
+        toolbar.pack(fill=tk.X, padx=15, pady=(0, 5))
+        
+        ttk.Label(toolbar, text="🔍").pack(side=tk.LEFT)
+        self.search_var = tk.StringVar()
+        self.search_var.trace_add("write", self._on_search_changed)
+        search_entry = ttk.Entry(toolbar, textvariable=self.search_var, font=("Consolas", 10))
+        search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 10))
+        
+        self.match_count_var = tk.StringVar(value="")
+        ttk.Label(toolbar, textvariable=self.match_count_var, foreground="gray", font=("", 9)).pack(side=tk.LEFT, padx=(0, 10))
+        
+        btn_sort = ttk.Button(toolbar, text="🔤 A→Z排序", width=10, command=self._sort_alphabetically)
+        btn_sort.pack(side=tk.RIGHT)
+        ToolTip(btn_sort, "按首字母对所有条目进行升序排列（中文按拼音）")
+        
+        # ===== 可滚动列表区域 =====
         frame = ttk.Frame(self)
         frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=5)
         
         self.canvas = tk.Canvas(frame)
         scrollbar = ttk.Scrollbar(frame, orient="vertical", command=self.canvas.yview)
         self.scrollable_frame = ttk.Frame(self.canvas)
+        # 让 scrollable_frame 的两列均分宽度
+        self.scrollable_frame.columnconfigure(0, weight=1)
+        self.scrollable_frame.columnconfigure(1, weight=1)
 
         self.scrollable_frame.bind(
             "<Configure>",
@@ -81,62 +109,164 @@ class DynamicListWindow(tk.Toplevel):
         self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
         self.canvas.configure(yscrollcommand=scrollbar.set)
         
+        # 鼠标滚轮支持
+        self.canvas.bind_all("<MouseWheel>", lambda e: self.canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
+        
         self.canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
-        # Add Initial Items
-        for item in initial_items:
-            if item.strip():
-                self.add_row(item.strip())
+        # 加载初始条目（先去重再排序）
+        unique_items = list(dict.fromkeys(item.strip() for item in initial_items if item.strip()))
+        unique_items = self._sort_values(unique_items)
+        for item in unique_items:
+            self.add_row(item)
                 
-        # If empty, add one empty row so user sees how to type
+        # 如果没有条目，添加一个空行
         if not self.rows:
             self.add_row("")
 
-        # Add Row Button
-        btn_add = ttk.Button(self, text="➕ 添加新的一行", command=lambda: self.add_row(""))
-        btn_add.pack(pady=5)
+        # ===== 底部按钮栏 =====
+        bottom_frame = ttk.Frame(self)
+        bottom_frame.pack(fill=tk.X, padx=15, pady=(5, 10))
         
-        # Footer Buttons
-        button_frame = ttk.Frame(self)
-        button_frame.pack(pady=10)
-        ttk.Button(button_frame, text="✅ 保存", command=self.save_and_close).pack(side="left", padx=5)
-        ttk.Button(button_frame, text="取消", command=self.destroy).pack(side="left", padx=5)
+        btn_add = ttk.Button(bottom_frame, text="➕ 添加新的一行", command=lambda: self.add_row(""))
+        btn_add.pack(side=tk.LEFT)
+        
+        btn_frame_right = ttk.Frame(bottom_frame)
+        btn_frame_right.pack(side=tk.RIGHT)
+        ttk.Button(btn_frame_right, text="✅ 保存", command=self.save_and_close).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame_right, text="取消", command=self.destroy).pack(side=tk.LEFT, padx=5)
         
         self.saved_items = None
+        self._update_match_count()
+        
+    @staticmethod
+    def _sort_key(text):
+        """排序键：中文按拼音首字母排序，英文按小写字母"""
+        text = text.lower().strip()
+        try:
+            from pypinyin import lazy_pinyin
+            return lazy_pinyin(text)
+        except ImportError:
+            # 没有 pypinyin 库则退回到普通排序
+            return [text]
+    
+    @staticmethod
+    def _sort_values(values):
+        """对值列表排序并去重"""
+        try:
+            from pypinyin import lazy_pinyin
+            return sorted(values, key=lambda x: lazy_pinyin(x.lower().strip()))
+        except ImportError:
+            return sorted(values, key=lambda x: x.lower().strip())
         
     def add_row(self, content=""):
+        # 计算当前应在 grid 的哪一行哪一列
+        total = len(self.rows)
+        grid_row = total // self.NUM_COLUMNS
+        grid_col = total % self.NUM_COLUMNS
+        
         row_frame = ttk.Frame(self.scrollable_frame)
-        row_frame.pack(fill=tk.X, pady=2, padx=5)
+        row_frame.grid(row=grid_row, column=grid_col, sticky="ew", pady=2, padx=3)
         
         entry_var = tk.StringVar(value=content)
-        entry = ttk.Entry(row_frame, textvariable=entry_var, font=("Consolas", 10))
-        entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         
-        btn_rm = ttk.Button(row_frame, text="➖ 删除", width=6, command=lambda: self.remove_row(row_frame, entry_var))
+        # 前缀匹配标记标签
+        badge_lbl = ttk.Label(row_frame, text="", width=4, anchor="c", font=("", 8))
+        badge_lbl.pack(side=tk.LEFT, padx=(0, 2))
+        
+        entry = ttk.Entry(row_frame, textvariable=entry_var, font=("Consolas", 10))
+        entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 3))
+        
+        btn_rm = ttk.Button(row_frame, text="➖", width=3, command=lambda: self.remove_row(row_frame, entry_var))
         btn_rm.pack(side=tk.RIGHT)
         
-        self.rows.append((row_frame, entry_var))
+        self.rows.append((row_frame, entry_var, badge_lbl))
         
-        # force canvas to update scroll
+        # 实时更新前缀标记
+        def _update_badge(*_):
+            val = entry_var.get().strip()
+            if val.endswith("*"):
+                badge_lbl.config(text="前缀", foreground="white", background="#0078D4")
+            else:
+                badge_lbl.config(text="精确", foreground="#666", background="")
+        
+        entry_var.trace_add("write", _update_badge)
+        _update_badge()  # 初始化显示
+        
+        # 滚动到底部
         self.update_idletasks()
         self.canvas.yview_moveto(1.0)
         
     def remove_row(self, frame, var):
-        frame.pack_forget()
+        frame.grid_forget()
         frame.destroy()
-        self.rows = [(f, v) for f, v in self.rows if v != var]
+        self.rows = [(f, v, b) for f, v, b in self.rows if v != var]
+        self._reflow_grid()
+        self._update_match_count()
+    
+    def _reflow_grid(self):
+        """删除行后重新排列 grid 布局"""
+        for idx, (row_frame, _, _) in enumerate(self.rows):
+            grid_row = idx // self.NUM_COLUMNS
+            grid_col = idx % self.NUM_COLUMNS
+            row_frame.grid(row=grid_row, column=grid_col, sticky="ew", pady=2, padx=3)
+        
+    def _on_search_changed(self, *_):
+        """实时搜索过滤：隐藏不匹配的行"""
+        keyword = self.search_var.get().strip().lower()
+        visible = 0
+        for row_frame, entry_var, _ in self.rows:
+            val = entry_var.get().strip().lower()
+            if not keyword or keyword in val:
+                row_frame.grid()  # 恢复显示
+                visible += 1
+            else:
+                row_frame.grid_remove()  # 隐藏但保留位置
+        self._update_match_count(visible_override=visible)
+    
+    def _update_match_count(self, visible_override=None):
+        total = len(self.rows)
+        if visible_override is not None:
+            self.match_count_var.set(f"显示 {visible_override}/{total}")
+        else:
+            self.match_count_var.set(f"共 {total} 条")
+    
+    def _sort_alphabetically(self):
+        """按首字母对所有条目进行 A→Z 升序排列（中文按拼音）"""
+        # 收集所有条目的值并去重
+        values = list(dict.fromkeys(var.get().strip() for _, var, _ in self.rows if var.get().strip()))
+        values = self._sort_values(values)
+        
+        # 清空所有行的 UI
+        for row_frame, _, _ in self.rows:
+            row_frame.grid_forget()
+            row_frame.destroy()
+        self.rows.clear()
+        
+        # 重新按排序后的顺序创建
+        for val in values:
+            self.add_row(val)
+        if not self.rows:
+            self.add_row("")
+            
+        # 清空搜索框
+        self.search_var.set("")
+        self._update_match_count()
         
     def show(self):
         self.wait_window()
         return self.saved_items
         
     def save_and_close(self):
+        # 保存时自动去重
+        seen = set()
         items = []
-        for _, var in self.rows:
+        for _, var, _ in self.rows:
             val = var.get().strip()
-            if val:
+            if val and val not in seen:
                 items.append(val)
+                seen.add(val)
         self.saved_items = items
         self.destroy()
 

@@ -76,6 +76,11 @@ class TaskDispatcher:
         self.ui_cb['set_status'](f"后台批量处理 {len(batch)} 个变动...")
         dirty_outputs = set()
         
+        rules = self.state.get_rules()
+        adv_opts = self.state.get_advanced_options()
+        output_path_base = self.state.get_output_path()
+        logseq_exclude_keys = self.state.get_logseq_exclude_keys()
+        
         for event_type, path in batch:
             old, new = self._update_cache_for_file(path, deleted=(event_type == 'deleted'),
                                                     rules=rules, adv_opts=adv_opts,
@@ -94,6 +99,23 @@ class TaskDispatcher:
     def _execute_initialize(self):
         self.ui_cb['set_status']("极速启动：正在多线程校验缓存和解析文件...")
         self.ui_cb['update_progress'](mode='determinate', val=0)
+        
+        # 检查输出路径是否与缓存中的路径一致，如果不一致则强制重建
+        current_output = self.state.get_output_path()
+        cached_paths_list = self.cache_manager.get_all_cached_paths()
+        if cached_paths_list:
+            # 检查第一个缓存条目的输出路径是否包含当前 output_path
+            sample_outputs = self.cache_manager.get_outputs_for_file(cached_paths_list[0])
+            if sample_outputs:
+                sample_key = next(iter(sample_outputs))
+                # 如果当前输出路径为空或者缓存中的路径前缀不匹配，强制清除所有缓存的 mtime 以触发重建
+                if (not current_output or current_output == os.getcwd()) or \
+                   (current_output and not sample_key.startswith(current_output)):
+                    for cp in cached_paths_list:
+                        entry = self.cache_manager.get_entry(cp)
+                        if entry:
+                            entry['mtime'] = 0  # 强制使 mtime 失效，触发重新解析
+                            self.cache_manager.update_entry(cp, 0, entry.get('outputs', {}))
         
         all_source_files = self._get_all_source_files()
         dirty_outputs = set()
@@ -167,11 +189,21 @@ class TaskDispatcher:
                 self.ui_cb['update_progress'](val=(i+1)/total_outputs*100)
                 self._update_single_output_file(out_path)
         
-        # update actve outputs state
+        # update active outputs state — 根据当前 output_path 过滤
         outputs_map = {}
+        current_out = self.state.get_output_path()
+        virtual_prefix = "<仅缓存,未设输出目录>"
         for src in self.cache_manager.get_all_cached_paths():
             for p in self.cache_manager.get_outputs_for_file(src):
-                outputs_map[p] = "多元"
+                basename = os.path.basename(p)
+                if not current_out or current_out == os.getcwd():
+                    # 输出路径未设置，使用虚拟前缀展示
+                    outputs_map[os.path.join(virtual_prefix, basename)] = "多元"
+                elif p.startswith(current_out):
+                    outputs_map[p] = "多元"
+                else:
+                    # 路径与当前输出不匹配，用当前路径重建显示
+                    outputs_map[os.path.join(current_out, basename)] = "多元"
         self.state.set_active_outputs(outputs_map)
         
         self.cache_manager.save_cache()
@@ -293,6 +325,12 @@ class TaskDispatcher:
         try:
             basename = os.path.basename(output_path)
             
+            # Skip export if the output path is not set (empty or fallback CWD)
+            base_dest = self.state.get_output_path()
+            if not base_dest or base_dest == os.getcwd():
+                self.state.add_active_output(os.path.join("<仅缓存,未设输出目录>", basename), "多元")
+                return
+                
             # Check the blacklist first! If blacklisted, block everything.
             blacklist = self.state.get_blacklist()
             if basename in blacklist:

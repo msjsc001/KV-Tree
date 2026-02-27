@@ -44,13 +44,26 @@ class LogseqParser:
                 # 如果当前行不是属性行，则跳过，继续检查下一行。
                 continue
 
-            # 检查当前行是否包含任何黑名单里的键
+            # 检查当前行是否包含任何黑名单里的键（支持精确匹配和前缀匹配）
             skip_line = False
+            key_match = self.key_pattern.match(line)
+            if not key_match:
+                # :: 前没有有效键名（空格或空），跳过这种畸形行
+                continue
+            
+            line_key = key_match.group(1)
             for ex in self.exclude_keys:
-                # 严格匹配 {ex}:: 以防止部分字串包含
-                if re.search(r'^\s*(?:-\s*)?{0}::'.format(re.escape(ex)), line):
-                    skip_line = True
-                    break
+                if ex.endswith('*'):
+                    # 前缀匹配模式：card-* 匹配所有以 card- 开头的键
+                    prefix = ex[:-1]
+                    if line_key.startswith(prefix):
+                        skip_line = True
+                        break
+                else:
+                    # 精确匹配模式
+                    if line_key == ex:
+                        skip_line = True
+                        break
                     
             if skip_line:
                 continue

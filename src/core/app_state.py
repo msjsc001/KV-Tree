@@ -1,6 +1,27 @@
 import threading
 import copy
 
+# 程序预置的 Logseq 系统属性排除键（精确匹配 + 前缀匹配用 * 结尾标记）
+DEFAULT_LOGSEQ_EXCLUDE_KEYS = [
+    # —— 精确匹配 ——
+    # Logseq 核心系统属性
+    "file", "file-path", "file-name", "id", "ls-type", "title",
+    "alias", "aliases", "type", "Registry",
+    # UI/渲染控制属性
+    "collapsed", "background-color", "heading", "icon", "public", "direction",
+    # 模板系统
+    "template", "template-including-parent", "filters",
+    # 时间戳
+    "created-at", "updated-at", "logseq.order-list-type",
+    # 任务状态关键词
+    "todo", "doing", "done", "later", "now", "wait",
+    # 闪卡系统
+    "deck",
+    # —— 前缀匹配（以 * 结尾表示匹配所有以此开头的键）——
+    "card-*", "hl-*", "query-*", "col-*",
+    "excalidraw-*", ".lsp-*", ".v-*"
+]
+
 class AppState:
     """
     Centralized, thread-safe state store for the application (SSOT).
@@ -16,7 +37,18 @@ class AppState:
         self._advanced_options = config.get("advanced_options", {})
         self._output_selection = config.get("output_selection", {})
         self._blacklist = set(config.get("blacklist", []))
-        self._logseq_exclude_keys = config.get("logseq_exclude_keys", [])
+        # 加载用户已有的排除键，并自动补全默认值（用户删除的不会被强制恢复）
+        loaded_keys = config.get("logseq_exclude_keys", None)
+        if loaded_keys is None or len(loaded_keys) == 0:
+            self._logseq_exclude_keys = list(DEFAULT_LOGSEQ_EXCLUDE_KEYS)
+        else:
+            # 将用户未曾见过的新默认值自动合并进去
+            user_deleted = set(config.get("_logseq_seen_defaults", []))
+            merged = list(loaded_keys)
+            for default_key in DEFAULT_LOGSEQ_EXCLUDE_KEYS:
+                if default_key not in merged and default_key not in user_deleted:
+                    merged.append(default_key)
+            self._logseq_exclude_keys = merged
         self._window_geometry = config.get("window_geometry", "")
         
         self._active_outputs = {}
@@ -165,6 +197,7 @@ class AppState:
                 "rules": copy.deepcopy(self._rules),
                 "advanced_options": copy.deepcopy(self._advanced_options),
                 "logseq_exclude_keys": list(self._logseq_exclude_keys),
+                "_logseq_seen_defaults": list(DEFAULT_LOGSEQ_EXCLUDE_KEYS),
                 "output_selection": copy.deepcopy(self._output_selection),
                 "blacklist": list(self._blacklist),
                 "window_geometry": self._window_geometry

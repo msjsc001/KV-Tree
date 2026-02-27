@@ -1,6 +1,7 @@
 import sys
 import os
 import shutil
+import ctypes
 
 # Ensure we can import from src
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
@@ -13,6 +14,13 @@ from src.logic.config_manager import ConfigManager
 from src.ui.main_window import KvTreeAppUI
 
 def main():
+    if sys.platform == "win32":
+        try:
+            myappid = f"msjsc001.kvtreeapp.kvt.1.2.0"
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        except Exception:
+            pass
+
     # [Data Centralization] Ensure User Data folder exists
     data_dir = os.path.abspath("用户数据")
     os.makedirs(data_dir, exist_ok=True)
@@ -50,6 +58,9 @@ def main():
     
     # Setup UI (Main Thread)
     app_ui = KvTreeAppUI(app_state, task_dispatcher, file_monitor)
+    
+    # Inject save logic to allow immediate persistence of states
+    app_ui.trigger_save_cb = lambda: config_manager.save_config(app_state.get_all_data()) if not getattr(app_state, "skip_save", False) else None
     
     # Run UI
     try:

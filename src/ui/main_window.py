@@ -3,6 +3,7 @@ from tkinter import ttk, filedialog, messagebox
 import os
 import sys
 import webbrowser
+import ctypes
 
 from src.ui.tray_icon import AppTrayIcon
 from src.ui.components import ToolTip, AdvancedOptionsWindow, BlacklistWindow, DynamicListWindow
@@ -13,7 +14,7 @@ except ImportError:
     winreg = None
 
 class KvTreeAppUI(tk.Tk):
-    VERSION = "1.1.0"
+    VERSION = "1.2.0"
 
     def __init__(self, app_state, task_dispatcher, file_monitor):
         super().__init__()
@@ -49,7 +50,12 @@ class KvTreeAppUI(tk.Tk):
         icon_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "..", "icon.ico")
         if os.path.exists(icon_path):
             try:
-                self.iconbitmap(icon_path)
+                self.iconbitmap(default=icon_path)
+                # 使用 PIL 加载图标并通过 wm_iconphoto 设置任务栏图标
+                from PIL import Image, ImageTk
+                icon_image = Image.open(icon_path)
+                self._icon_photo = ImageTk.PhotoImage(icon_image)
+                self.wm_iconphoto(True, self._icon_photo)
             except Exception:
                 pass
 
@@ -350,9 +356,8 @@ class KvTreeAppUI(tk.Tk):
         
         if startup_changed:
             self.set_startup(new_opts.get("run_on_startup"))
-        self.set_status("设置已全部保存。")
         
-        # Check if parsing-affecting options changed
+        # 检查是否有解析相关选项变化，使用防抖机制避免连续三次点击触发三次重建
         parse_opts_changed = (
             opts.get("logseq_scan_keys", False) != new_opts.get("logseq_scan_keys", False) or
             opts.get("logseq_scan_values", False) != new_opts.get("logseq_scan_values", False) or
@@ -360,8 +365,22 @@ class KvTreeAppUI(tk.Tk):
         )
         
         if parse_opts_changed:
-            if messagebox.askyesno("更新解析规则", "你更改了解析过滤规则或 Logseq 源数据扫描属性，需要重新全量建立索引词库才会生效。\n\n是否立即开始全量重建？"):
-                self.dispatcher.put_task(("clear_cache",))
+            # 防抖：取消上一个待执行的重建计时器，重新计时 2 秒
+            if hasattr(self, '_rebuild_timer_id') and self._rebuild_timer_id:
+                self.after_cancel(self._rebuild_timer_id)
+            self.set_status("扫描选项已变更，2秒后自动重建词库...")
+            self._rebuild_timer_id = self.after(2000, self._debounced_rebuild)
+        else:
+            self.set_status("设置已保存。")
+        
+        # 即时持久化
+        if hasattr(self, 'trigger_save_cb'): self.trigger_save_cb()
+    
+    def _debounced_rebuild(self):
+        """防抖回调：静默触发重建，使用 full_rescan 而非 clear_cache 避免删除缓存文件"""
+        self._rebuild_timer_id = None
+        self.set_status("正在后台重建词库（选项变更）...")
+        self.dispatcher.put_task(("full_rescan",))
 
     def clear_personal_data(self):
         msg = "这将清除您勾选的个人数据，重置软件。\n\n• 您的源 .md 笔记文件【绝不】受影响。\n• 清除后软件将立即退出，需要您手动重新打开。\n\n确认清除吗？"
@@ -374,6 +393,8 @@ class KvTreeAppUI(tk.Tk):
             try:
                 if self.clear_config_var.get() and os.path.exists(config_path):
                     os.remove(config_path)
+                    if os.path.exists(cache_path):
+                        os.remove(cache_path) # Force wipe cache to clear old absolute paths
                     self.app_state.set_output_path("")
                     self.app_state.set_rules({"line_rules": [], "content_rules": []})
                     self.update_o_table()
@@ -535,7 +556,7 @@ class KvTreeAppUI(tk.Tk):
 
     def manage_logseq_excludes(self):
         current_keys = self.app_state.get_logseq_exclude_keys()
-        instruction = "填入你要排除的 Logseq 属性键（精确匹配）。\n例如填入 alias，那么所有 `alias:: XXX` 的行都会被整行连坐跳过，值也不会被录入。"
+        instruction = "填入你要排除的 Logseq 属性键。\n• 精确匹配：如填入 alias，所有 alias:: 行会被跳过。\n• 前缀匹配：如填入 card-*，所有以 card- 开头的键都会被跳过（card-repeats, card-ease-factor 等）。"
         
         dialog = DynamicListWindow(
             self, 
@@ -589,6 +610,7 @@ class KvTreeAppUI(tk.Tk):
         self.update_source_list()
         self.set_status(f"已添加 {len(files)} 个文件。")
         self.dispatcher.put_task(("initialize",))
+        if hasattr(self, 'trigger_save_cb'): self.trigger_save_cb()
 
     def add_folder(self):
         folder_path = filedialog.askdirectory(title="选择文件夹")
@@ -607,6 +629,7 @@ class KvTreeAppUI(tk.Tk):
             self.app_state.update_source_file(s, data)
             self.update_source_list()
             self.dispatcher.put_task(("initialize",))
+            if hasattr(self, 'trigger_save_cb'): self.trigger_save_cb()
 
     def on_s_tree_click(self, event):
         if self.s_tree.identify_region(event.x, event.y) != "cell": return
@@ -642,6 +665,7 @@ class KvTreeAppUI(tk.Tk):
             else:
                 self.dispatcher.put_task(("process_file", "deleted", selected_id))
             self.set_status(f"'{os.path.basename(selected_id)}' 已移除。")
+            if hasattr(self, 'trigger_save_cb'): self.trigger_save_cb()
 
     def _show_scan_results_and_add(self, folder_path, scanned_files):
         file_count = len(scanned_files)
@@ -653,6 +677,7 @@ class KvTreeAppUI(tk.Tk):
             self.update_source_list()
             self.dispatcher.put_task(("initialize",))
             self.set_status(f"已添加文件夹: {folder_path}...")
+            if hasattr(self, 'trigger_save_cb'): self.trigger_save_cb()
 
     def select_o(self):
         p = filedialog.askdirectory()
