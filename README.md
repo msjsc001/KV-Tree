@@ -1,5 +1,7 @@
 # KVTree：您的终极 QuickKV 词库可视化管理器
 
+<img alt="image" src="https://github.com/user-attachments/assets/88227df4-11f8-4e5b-bd1c-5e598b8a6b36" />
+
 KVTree (KVT) 是一款强大的桌面端效率工具，专为 [QuickKV (QKV)](https://github.com/msjsc001/QuickKV) 用户设计。它允许您在**任何 Markdown 笔记软件**（如 Obsidian、Logseq、Typora）中，通过直观的无序列表（大纲）树来优雅地管理海量词库。
 
 KVT 会在后台静默运行，自动将您笔记中的大纲结构实时编译为 QuickKV 标准词库并输出到指定目录。无论是十几个词条还是百万量级的海量数据，**KVTree 都能让您对“词库里到底有什么词”了如指掌**。
