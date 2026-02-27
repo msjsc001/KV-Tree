@@ -126,3 +126,7 @@ yarn-error.log
 # 自定义忽略的文件
 源文件-用于测试/
 生成的词库输出-用于测试/
+用户数据/
+kv_tree_config.json
+parsing_cache.json
+*.tmp

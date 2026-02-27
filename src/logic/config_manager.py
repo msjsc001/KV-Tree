@@ -4,7 +4,7 @@
 import json
 import os
 
-DEFAULT_RULES = """
+DEFAULT_RULES = r"""
 [排除规则]
 ; 每行一个正则表达式，匹配到的整行内容都将被忽略
 排除行_1 = ^\s*id::.*
@@ -26,7 +26,8 @@ class ConfigManager:
                 "logseq_scan_keys": False,
                 "logseq_scan_values": False,
                 "run_on_startup": False,
-                "minimize_to_tray": True
+                "minimize_to_tray": True,
+                "auto_generate": True
             },
             "output_selection": {}
         }
