@@ -14,7 +14,7 @@ except ImportError:
     winreg = None
 
 class KvTreeAppUI(tk.Tk):
-    VERSION = "1.2.0"
+    VERSION = "1.2.1"
 
     def __init__(self, app_state, task_dispatcher, file_monitor):
         super().__init__()
@@ -592,6 +592,10 @@ class KvTreeAppUI(tk.Tk):
             if display_source == "多元": display_source = "由多个源文件合成"
             self.g_tree.insert("", "end", iid=f_path, values=(check_char, basename, display_source, f_path, "👁️ 打开"))
 
+    def _restart_monitor_if_auto(self):
+        if self.auto_generate.get():
+            self.file_monitor.start()
+
     def update_source_list(self):
         self.s_tree.delete(*self.s_tree.get_children())
         sources = self.app_state.get_source_files()
@@ -610,6 +614,7 @@ class KvTreeAppUI(tk.Tk):
         self.update_source_list()
         self.set_status(f"已添加 {len(files)} 个文件。")
         self.dispatcher.put_task(("initialize",))
+        self._restart_monitor_if_auto()
         if hasattr(self, 'trigger_save_cb'): self.trigger_save_cb()
 
     def add_folder(self):
@@ -629,6 +634,7 @@ class KvTreeAppUI(tk.Tk):
             self.app_state.update_source_file(s, data)
             self.update_source_list()
             self.dispatcher.put_task(("initialize",))
+            self._restart_monitor_if_auto()
             if hasattr(self, 'trigger_save_cb'): self.trigger_save_cb()
 
     def on_s_tree_click(self, event):
@@ -665,6 +671,7 @@ class KvTreeAppUI(tk.Tk):
             else:
                 self.dispatcher.put_task(("process_file", "deleted", selected_id))
             self.set_status(f"'{os.path.basename(selected_id)}' 已移除。")
+            self._restart_monitor_if_auto()
             if hasattr(self, 'trigger_save_cb'): self.trigger_save_cb()
 
     def _show_scan_results_and_add(self, folder_path, scanned_files):
@@ -677,6 +684,7 @@ class KvTreeAppUI(tk.Tk):
             self.update_source_list()
             self.dispatcher.put_task(("initialize",))
             self.set_status(f"已添加文件夹: {folder_path}...")
+            self._restart_monitor_if_auto()
             if hasattr(self, 'trigger_save_cb'): self.trigger_save_cb()
 
     def select_o(self):

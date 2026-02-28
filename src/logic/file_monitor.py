@@ -19,10 +19,6 @@ class AppEventHandler(FileSystemEventHandler):
 
         current_time = time.time()
         
-        # 初级防抖检查
-        if path in self.last_event_time and current_time - self.last_event_time[path] < 1.0:
-            return
-        
         self.last_event_time[path] = current_time
         
         # [NEW] Risk 3 Mitigation (Shadow State Fix)

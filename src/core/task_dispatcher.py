@@ -81,8 +81,11 @@ class TaskDispatcher:
         output_path_base = self.state.get_output_path()
         logseq_exclude_keys = self.state.get_logseq_exclude_keys()
         
-        for event_type, path in batch:
-            old, new = self._update_cache_for_file(path, deleted=(event_type == 'deleted'),
+        unique_paths = set(path for event_type, path in batch)
+        
+        for path in unique_paths:
+            is_deleted = not os.path.exists(path)
+            old, new = self._update_cache_for_file(path, deleted=is_deleted,
                                                     rules=rules, adv_opts=adv_opts,
                                                     output_path_base=output_path_base,
                                                     logseq_exclude_keys=logseq_exclude_keys)
