@@ -88,7 +88,49 @@ KVT 会在后台静默运行，自动将您笔记中的大纲结构实时编译�
 .\venv\Scripts\python kv_tree_app.py
 ```
 
-## 🧩 极客打包：从零编译为单 EXE 文件
+## 👨‍💻 开发者指南
+
+本项目欢迎社区开发者参与贡献。以下是深入了解并参与 KVTree 开发的快速指南。
+
+### 🛠️ 技术栈 (Tech Stack)
+- **核心语言**: Python 3.10+
+- **GUI 框架**: [Flet](https://flet.dev) (基于 Flutter 的现代 Python UI 框架，提供精美的 Fluent Design 交互体验)
+- **文件监控系统**: `watchdog` (实现毫秒级的无感热更新)
+- **数据管理层**: 标准化抽象语法树 (AST) 与本地缓存策略
+- **打包工具**: PyInstaller
+
+### 💡 核心技术点 (Core Technical Points)
+1. **智能 AST 树形解析 (`src/logic/ast_parser.py`)**: 摒弃脆弱的单纯正则匹配，采用自构建的多叉树（AST）模型精确还原 Markdown 无序列表的层级关系，精准支持提取“单节点”、“父与子”和“不包含父”等复杂逻辑。
+2. **多源多态数据处理 (`src/logic/logseq_parser.py`)**: 支持各类标准 Markdown 语法的通用解析，同时深度兼容 Logseq 的 `keys::` 页面属性范式，自动去重与过滤系统属性。
+3. **响应式状态管理 (`src/core/app_state.py`)**: 彻底将底层业务轮询状态与界面的渲染解耦，通过集中化的事件派发器 (`task_dispatcher.py`)，保证在扫描海量节点库时 UI 始终保持丝滑响应，避免主线程卡死阻塞。
+4. **亚秒级无感监控 (`src/logic/file_monitor.py`)**: 借助硬件级别的系统文件操作事件订阅（替代高开销的轮询），实现用户触发 `Ctrl+S` 时即刻增量更新目标词库。
+
+### 📁 项目结构 (Project Structure)
+目前 src 源码的推荐阅读顺序如下：
+```text
+KVTree/
+├── kv_tree_app.py        # 程序入口文件（包含主运行逻辑）
+├── README.md             # 项目说明文档
+├── CHANGELOG.md          # 更新日志
+└── src/                  # 核心源代码目录
+    ├── core/             # 核心应用状态机与总线（起点）
+    │   ├── app_state.py      # 全局状态字典与管理器
+    │   └── task_dispatcher.py# 任务异步分发与生命周期调度
+    ├── ui/               # 用户交互界面层（视图层）
+    │   ├── main_window.py    # 主窗体与双标签页视图入口
+    │   ├── components.py     # 可复用的 Fluent UI 按钮面板等控件
+    │   └── tray_icon.py      # 系统托盘与后台常驻模块
+    ├── logic/            # 业务逻辑与数据处理层（核心引擎）
+    │   ├── ast_parser.py     # 抽象语法树构建与解析器
+    │   ├── logseq_parser.py  # Logseq 专属属性解析特化处理
+    │   ├── file_monitor.py   # 后台文件修改热更新监控
+    │   ├── cache_manager.py  # 增量扫描缓存机制（防抖与提速）
+    │   └── config_manager.py # 用户配置的持久化与读取读写
+    └── utils/            # 通用基础工具类
+        └── file_utils.py     # 安全的文件读写落地与防损方案
+```
+
+### 🧩 构建可执行文件 (Build EXE)
 
 如果您想将其完全便携化发给朋友，在没有 Python 环境的电脑上绿色运行：
 
