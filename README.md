@@ -138,12 +138,21 @@ KVTree/
    ```powershell
    .\venv\Scripts\Activate.ps1
    ```
-2. 安装编译插件：
+2. 安装编译插件（如果尚未安装）：
    ```powershell
    pip install pyinstaller
    ```
-3. 执行无黑窗一键编译：
+3. 使用项目自带的 spec 文件一键构建（**文件夹模式**）：
    ```powershell
-   pyinstaller --name "KVTree" --onefile --noconsole --icon="icon.ico" --add-data "icon.ico;." --add-data "src;src" kv_tree_app.py
+   pyinstaller KVTree.spec --noconfirm
    ```
-4. 稍等片刻后，请在生成的 `dist` 目录下提取专属的 `KVTree.exe`，双击即可无痛运行！
+4. 构建完成后，产物位于 `dist/KVTree/` 目录：
+   ```text
+   dist/KVTree/
+   ├── KVTree.exe      ← 双击即启动，秒开！
+   └── _internal/      ← 运行时依赖（请勿删除）
+   ```
+5. 分发时，将整个 `KVTree/` 文件夹打包为 ZIP 即可。收到的人解压后双击 `KVTree.exe` 即可无痛运行。
+
+> [!CAUTION]
+> **请勿使用 `--onefile` 单文件模式构建！** 单文件模式会将所有依赖打包进一个巨型 EXE，每次启动时需解压到临时目录。在 Windows 10/11 下，Windows Defender 实时保护会对这些新解压出的 `.dll` / `.pyd` 文件逐一扫描，**导致首次启动延迟 1~5 分钟**，严重影响用户体验。文件夹模式（`onedir`）仅首次构建时写入文件，后续启动无需解压，可实现秒级冷启动。
